@@ -56,7 +56,7 @@ const AdminApi = {
       body: JSON.stringify({ driverId })
     });
     const data = await res.json();
-    if (!res.ok) throw< Error(data.message || 'Erro ao atribuir motorista.');
+    if (!res.ok) throw new Error(data.message || 'Erro ao atribuir motorista.');
     return data;
   },
 
