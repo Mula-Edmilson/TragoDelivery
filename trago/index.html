@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Central - Trago Delivery</title>
+  
+  <!-- CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    /* Estilos personalizados para o marcador do motorista no mapa */
+    .custom-driver-marker { display: flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body class="bg-[#F7F8F3] text-[#272324] min-h-screen flex flex-col lg:flex-row">
+
+  <!-- ================================================== -->
+  <!-- BARRA LATERAL (SIDEBAR) -->
+  <!-- ================================================== -->
+  <aside class="bg-[#1B2A4A] text-white w-full lg:w-64 shrink-0 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-white/10 lg:sticky lg:top-0 lg:h-screen">
+    
+    <!-- Topo da Sidebar: Branding & Toggle Mobile -->
+    <div class="p-4 flex items-center justify-between border-b border-white/10">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded bg-[#2F7A3C] flex items-center justify-center font-bold text-sm tracking-wider shadow">
+          TD
+        </div>
+        <div>
+          <span class="text-sm font-bold tracking-tight block">TRAGO DELIVERY</span>
+          <span class="text-[9px] text-[#8DC543] uppercase tracking-widest block">Portal Central</span>
+        </div>
+      </div>
+
+      <!-- Botão Menu Mobile -->
+      <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="p-1 lg:hidden text-gray-300 hover:text-white">
+        <i class="fas fa-bars text-xl"></i>
+      </button>
+    </div>
+
+    <!-- Navegação / Menu (Escondido por omissão em Mobile) -->
+    <div id="mobile-menu" class="hidden lg:flex flex-1 flex-col justify-between p-4 overflow-y-auto">
+      
+      <!-- Links Principais -->
+      <nav class="space-y-1">
+        
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-1">Geral</p>
+        
+        <button data-section="visao-geral" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-white bg-[#2F7A3C] transition-colors">
+          <i class="fas fa-chart-pie w-4 text-center"></i> Visão Geral
+        </button>
+
+        <button data-section="criar-entrega" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-plus-circle w-4 text-center"></i> Nova Entrega
+        </button>
+
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-3 mb-1">Operações</p>
+
+        <button data-section="entregas" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-boxes w-4 text-center"></i> Entregas Ativas
+        </button>
+
+        <button data-section="historico" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-history w-4 text-center"></i> Histórico
+        </button>
+
+        <button data-section="mapa" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-map-marked-alt w-4 text-center"></i> Mapa em Tempo Real
+        </button>
+
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-3 mb-1">Entidades</p>
+
+        <button data-section="motoristas" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-users w-4 text-center"></i> Motoristas
+        </button>
+
+        <button data-section="clientes" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-handshake w-4 text-center"></i> Clientes
+        </button>
+
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-3 mb-1">Finanças & Gestão</p>
+
+        <button data-section="custos" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-money-bill-wave w-4 text-center"></i> Custos da Empresa
+        </button>
+
+        <button data-section="despesas" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-file-invoice-dollar w-4 text-center"></i> Despesas Lançadas
+        </button>
+
+        <button data-section="cargos" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-user-shield w-4 text-center"></i> Gestores / Perfis
+        </button>
+
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-3 mb-1">Sistema</p>
+
+        <button data-section="configuracoes" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-cog w-4 text-center"></i> Configurações
+        </button>
+
+        <button data-section="perigo" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors">
+          <i class="fas fa-exclamation-triangle w-4 text-center"></i> Zona de Perigo
+        </button>
+
+      </nav>
+
+      <!-- Rodapé da Sidebar: Info do Utilizador -->
+      <div class="pt-4 border-t border-white/10 mt-6">
+        <div class="flex items-center justify-between">
+          <div class="text-xs truncate">
+            <span class="text-gray-400 block text-[9px] uppercase font-bold">Sessão Ativa</span>
+            <span class="font-bold text-white truncate max-w-[130px] inline-block" id="admin-user-name">Carregando...</span>
+          </div>
+
+          <button onclick="window.Auth.handleLogout('admin')" class="p-1.5 bg-white/5 hover:bg-red-600 rounded text-gray-300 hover:text-white transition-colors" title="Terminar Sessão">
+            <i class="fas fa-sign-out-alt"></i>
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </aside>
+
+  <!-- ================================================== -->
+  <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+  <!-- ================================================== -->
+  <main class="flex-1 p-4 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+
+    <!-- SECÇÃO 1: VISÃO GERAL -->
+    <section id="section-visao-geral" class="admin-section space-y-6">
+      
+      <!-- Barra Superior de Boas-vindas -->
+      <div class="bg-white p-4 lg:p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold">Centro de Operações</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Visão consolidada das métricas de entrega e estado da frota.</p>
+        </div>
+        
+        <div class="flex items-center gap-2">
+          <button onclick="AdminApp.showSection('criar-entrega')" class="px-3 py-2 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded text-xs shadow flex items-center gap-1.5 transition-colors">
+            <i class="fas fa-plus"></i> Nova Entrega
+          </button>
+          <button onclick="AdminApp.loadOverview()" class="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs" title="Atualizar Dados">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Métricas Rápidas (Cards) -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between text-gray-400">
+            <span class="text-xs font-bold uppercase tracking-wider">Pendentes</span>
+            <i class="fas fa-clock text-lg text-yellow-500"></i>
+          </div>
+          <p class="text-2xl font-bold mt-2" id="stat-pendentes">0</p>
+          <span class="text-[10px] text-gray-500 block mt-1">Aguardam atribuição ou recolha</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between text-gray-400">
+            <span class="text-xs font-bold uppercase tracking-wider">Em Trânsito</span>
+            <i class="fas fa-route text-lg text-blue-500"></i>
+          </div>
+          <p class="text-2xl font-bold mt-2 text-[#2F7A3C]" id="stat-em-transito">0</p>
+          <span class="text-[10px] text-gray-500 block mt-1">Em processo de recolha ou entrega</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between text-gray-400">
+            <span class="text-xs font-bold uppercase tracking-wider">Concluídas Hoje</span>
+            <i class="fas fa-check-circle text-lg text-[#3DAA50]"></i>
+          </div>
+          <p class="text-2xl font-bold mt-2" id="stat-concluidas">0</p>
+          <span class="text-[10px] text-gray-500 block mt-1">Finalizadas com código nas últimas 24h</span>
+        </div>
+
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between text-gray-400">
+            <span class="text-xs font-bold uppercase tracking-wider">Frota Ativa</span>
+            <i class="fas fa-signal text-lg text-green-600"></i>
+          </div>
+          <p class="text-2xl font-bold mt-2 text-[#C97813]" id="stat-online">0</p>
+          <span class="text-[10px] text-gray-500 block mt-1">Motoristas online e a emitir sinal</span>
+        </div>
+
+      </div>
+
+      <!-- Secção de Gráficos e Finanças -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Gráfico de Serviços -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col">
+          <h3 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Adesão por Tipo de Serviço</h3>
+          <div class="flex-1 relative min-h-[220px]">
+            <canvas id="servicesChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico Financeiro -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm lg:col-span-2 flex flex-col">
+          <h3 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Receitas vs Custos (Últimos 6 Meses)</h3>
+          <div class="flex-1 relative min-h-[220px]">
+            <canvas id="costsChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Resumo Financeiro do Mês -->
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h3 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Métricas Financeiras (Mês Atual)</h3>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div class="p-3 bg-gray-50 rounded border">
+            <span class="text-[10px] text-gray-500 uppercase font-bold block">Receita Bruta</span>
+            <span class="text-base font-bold text-[#2F7A3C] block mt-1" id="fin-receita">0 MZN</span>
+          </div>
+
+          <div class="p-3 bg-gray-50 rounded border">
+            <span class="text-[10px] text-gray-500 uppercase font-bold block">Ganhos da Frota</span>
+            <span class="text-base font-bold text-[#C97813] block mt-1" id="fin-ganhos-motoristas">0 MZN</span>
+          </div>
+
+          <div class="p-3 bg-gray-50 rounded border">
+            <span class="text-[10px] text-gray-500 uppercase font-bold block">Lucro Bruto da Empresa</span>
+            <span class="text-base font-bold text-gray-800 block mt-1" id="fin-lucro">0 MZN</span>
+          </div>
+
+          <div class="p-3 bg-gray-50 rounded border">
+            <span class="text-[10px] text-gray-500 uppercase font-bold block">Motorista do Mês</span>
+            <span class="text-sm font-bold text-[#3DAA50] block mt-1 truncate" id="fin-top-driver">-</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 2: CRIAR NOVA ENTREGA -->
+    <section id="section-criar-entrega" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-base font-bold mb-4 pb-2 border-b">Formulário de Registo de Nova Entrega</h2>
+        
+        <form id="form-create-order" class="space-y-4 text-xs">
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Tipo de Serviço *</label>
+              <select name="service_type" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+                <option value="rapido">Delivery Rápido</option>
+                <option value="doc">Documentos (Doc.)</option>
+                <option value="farma">Farmácia</option>
+                <option value="carga">Cargas</option>
+                <option value="outros">Outros</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Preço (MZN) *</label>
+              <input type="number" name="price" required min="0" placeholder="Ex: 450" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Método de Pagamento *</label>
+              <select name="payment_method" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+                <option value="cash">Dinheiro</option>
+                <option value="mpesa">M-Pesa</option>
+                <option value="emola">E-Mola</option>
+                <option value="mkesh">M-Kesh</option>
+                <option value="bank_transfer">Transferência Bancária</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div class="pt-2 border-t">
+            <label class="block font-semibold text-gray-700 mb-1">Vincular a Cliente Existente (Opcional)</label>
+            <select id="order-client-select" name="clientId" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+              <option value="">A carregar clientes...</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Nome do Cliente / Destinatário *</label>
+              <input type="text" id="order-client-name" name="client_name" required placeholder="Nome completo" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Telefone Principal *</label>
+              <input type="text" id="order-client-phone" name="client_phone1" required placeholder="+258 84/82..." class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Telefone Secundário</label>
+              <input type="text" name="client_phone2" placeholder="Opcional" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+
+          </div>
+
+          <div class="pt-2 border-t">
+            <label class="block font-semibold text-gray-700 mb-1">Endereço Completo de Entrega *</label>
+            <input type="text" id="order-client-address" name="address_text" required placeholder="Av/Rua, Bairro, Número - Maputo" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Latitude (Coordenadas de GPS) *</label>
+              <input type="text" name="lat" required placeholder="Ex: -25.9653" value="-25.9653" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Longitude (Coordenadas de GPS) *</label>
+              <input type="text" name="lng" required placeholder="Ex: 32.5890" value="32.5890" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+          </div>
+
+          <div class="pt-2 border-t grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Imagem do Pacote (Opcional)</label>
+              <input type="file" name="image" accept="image/*" class="w-full p-1.5 border rounded">
+              <span class="text-[10px] text-gray-400 block mt-0.5">Formatos: JPG, PNG, WEBP. Máx: 5MB</span>
+            </div>
+
+            <div class="flex items-center gap-2 pt-4">
+              <input type="checkbox" id="autoAssign" name="autoAssign" value="true" class="w-4 h-4 text-[#2F7A3C]">
+              <label for="autoAssign" class="font-bold text-gray-800 cursor-pointer">
+                Atribuição Automática Baseada em Geolocalização
+                <span class="block text-[10px] font-normal text-gray-500">Encontra e atribui ao motorista livre mais próximo do ponto de entrega.</span>
+              </label>
+            </div>
+
+          </div>
+
+          <div class="pt-4 border-t flex justify-end">
+            <button type="submit" class="px-5 py-2.5 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow transition-colors">
+              Criar e Processar Entrega
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 3: GESTÃO DE MOTORISTAS -->
+    <section id="section-motoristas" class="admin-section hidden space-y-4">
+      
+      <!-- Registo de Motorista -->
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Registar Novo Motorista</h2>
+        
+        <form id="form-create-driver" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Nome Completo *</label>
+            <input type="text" name="nome" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Email *</label>
+            <input type="email" name="email" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Telefone *</label>
+            <input type="text" name="telefone" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Palavra-Passe *</label>
+            <input type="password" name="password" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Matrícula da Viatura</label>
+            <input type="text" name="vehicle_plate" placeholder="Ex: MMQ-12-34" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Taxa de Comissão (%)</label>
+            <input type="number" name="commissionRate" min="0" max="100" value="20" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div class="md:col-span-3 flex justify-end pt-1">
+            <button type="submit" class="px-4 py-2 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow">
+              Adicionar à Frota
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tabela -->
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Frota de Motoristas</h2>
+          <button onclick="AdminApp.loadDrivers()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="drivers-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 4: GESTÃO DE CLIENTES -->
+    <section id="section-clientes" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Registar Conta de Cliente</h2>
+        
+        <form id="form-create-client" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Nome do Responsável *</label>
+            <input type="text" name="nome" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Telefone Único *</label>
+            <input type="text" name="telefone" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Email</label>
+            <input type="email" name="email" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Nome da Empresa</label>
+            <input type="text" name="empresa" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">NUIT</label>
+            <input type="text" name="nuit" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Endereço Sede</label>
+            <input type="text" name="endereco" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div class="md:col-span-3 flex justify-end pt-1">
+            <button type="submit" class="px-4 py-2 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow">
+              Registar Cliente
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Diretório de Clientes</h2>
+          <button onclick="AdminApp.loadClients()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="clients-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 5: GESTÃO DE CUSTOS -->
+    <section id="section-custos" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Registar Custo Operacional da Empresa</h2>
+        
+        <form id="form-create-cost" class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Categoria *</label>
+            <select name="category" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+              <option value="salarios">Salários</option>
+              <option value="renda">Renda</option>
+              <option value="manutencao">Manutenção</option>
+              <option value="comunicacao">Comunicação</option>
+              <option value="marketing">Marketing</option>
+              <option value="combustivel">Combustível</option>
+              <option value="diversos">Diversos</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Valor (MZN) *</label>
+            <input type="number" name="amount" required min="1" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Data</label>
+            <input type="date" name="date" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Descrição *</label>
+            <input type="text" name="description" required placeholder="Detalhes do custo" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div class="md:col-span-4 flex justify-end pt-1">
+            <button type="submit" class="px-4 py-2 bg-[#C97813] hover:bg-[#a86410] text-white font-bold rounded shadow">
+              Lançar Custo
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Histórico de Custos</h2>
+          <button onclick="AdminApp.loadCosts()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="costs-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 6: GESTÃO DE CARGOS / GESTORES -->
+    <section id="section-cargos" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Criar Perfil de Gestor Operacional</h2>
+        
+        <form id="form-create-manager" class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Nome *</label>
+            <input type="text" name="nome" required class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Email *</label>
+            <input type="email" name="email" required class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Telefone *</label>
+            <input type="text" name="telefone" required class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Palavra-Passe *</label>
+            <input type="password" name="password" required class="w-full p-2 border rounded">
+          </div>
+          <div class="md:col-span-4 flex justify-end">
+            <button type="submit" class="px-4 py-2 bg-[#1B2A4A] text-white font-bold rounded shadow">
+              Criar Gestor
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Gestores Registados</h2>
+          <button onclick="AdminApp.loadManagers()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="managers-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 7: DESPESAS LANÇADAS -->
+    <section id="section-despesas" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Lançar Despesa Avulsa (Gestão)</h2>
+        
+        <form id="form-create-expense" class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Categoria *</label>
+            <input type="text" name="category" required placeholder="Ex: Alimentação" class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Valor (MZN) *</label>
+            <input type="number" name="amount" required min="1" class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Data</label>
+            <input type="date" name="date" class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Descrição *</label>
+            <input type="text" name="description" required placeholder="Motivo da despesa" class="w-full p-2 border rounded">
+          </div>
+          <div class="md:col-span-4 flex justify-end">
+            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded shadow">
+              Registar Despesa
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Listagem de Despesas</h2>
+          <button onclick="AdminApp.loadExpenses()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="expenses-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 8: ENTREGAS ATIVAS -->
+    <section id="section-entregas" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold">Monitorização de Entregas Ativas</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Encomendas que ainda não foram finalizadas nem canceladas.</p>
+          </div>
+          <button onclick="AdminApp.loadActiveOrders()" class="px-3 py-1.5 bg-[#2F7A3C] text-white rounded text-xs font-bold shadow">
+            <i class="fas fa-sync-alt mr-1"></i> Atualizar
+          </button>
+        </div>
+
+        <div id="active-orders-table-container" class="overflow-x-auto min-h-[300px]">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 9: HISTÓRICO -->
+    <section id="section-historico" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold">Histórico Geral de Encomendas</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Listagem das últimas 200 entregas concluídas ou canceladas.</p>
+          </div>
+          <button onclick="AdminApp.loadHistoryOrders()" class="px-3 py-1.5 bg-[#2F7A3C] text-white rounded text-xs font-bold shadow">
+            <i class="fas fa-sync-alt mr-1"></i> Atualizar
+          </button>
+        </div>
+
+        <div id="history-orders-table-container" class="overflow-x-auto min-h-[300px]">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 10: MAPA EM TEMPO REAL -->
+    <section id="section-mapa" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col h-[calc(100vh-140px)] min-h-[500px]">
+        <div class="flex items-center justify-between mb-3 shrink-0">
+          <div>
+            <h2 class="text-sm font-bold">Rastreamento da Frota (Maputo)</h2>
+            <p class="text-xs text-gray-500">As posições são atualizadas em tempo real via WebSockets.</p>
+          </div>
+
+          <div class="flex items-center gap-3 text-xs">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-600 inline-block"></span> Livre</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-orange-600 inline-block"></span> Ocupado</span>
+          </div>
+        </div>
+
+        <!-- Container do Mapa Leaflet -->
+        <div id="admin-map" class="flex-1 rounded border z-10"></div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 11: CONFIGURAÇÕES -->
+    <section id="section-configuracoes" class="admin-section hidden space-y-6">
+      
+      <!-- Alterar Senha -->
+      <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm max-w-md">
+        <h2 class="text-sm font-bold uppercase text-gray-400 tracking-wider mb-4">Alterar Palavra-Passe Administrativa</h2>
+        
+        <form id="form-change-password" class="space-y-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-1">Palavra-Passe Atual</label>
+            <input type="password" name="senhaAntiga" required class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-1">Nova Palavra-Passe</label>
+            <input type="password" name="senhaNova" required class="w-full p-2 border rounded">
+          </div>
+          <button type="submit" class="w-full py-2.5 bg-[#1B2A4A] text-white font-bold rounded shadow">
+            Atualizar Palavra-Passe
+          </button>
+        </form>
+      </div>
+
+      <!-- Exportação Financeira -->
+      <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm max-w-md">
+        <h2 class="text-sm font-bold uppercase text-gray-400 tracking-wider mb-2">Exportação Financeira Consolidada</h2>
+        <p class="text-xs text-gray-500 mb-4">Gere um relatório completo em Excel com todas as receitas, ganhos de motoristas, custos e despesas do período.</p>
+        
+        <form id="form-export-financial" class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-medium text-gray-600 mb-1">Data Início</label>
+              <input type="date" name="startDate" required class="w-full p-2 border rounded">
+            </div>
+            <div>
+              <label class="block font-medium text-gray-600 mb-1">Data Fim</label>
+              <input type="date" name="endDate" required class="w-full p-2 border rounded">
+            </div>
+          </div>
+          <button type="submit" class="w-full py-2.5 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow flex items-center justify-center gap-2">
+            <i class="fas fa-file-excel"></i> Transferir Relatório (XLSX)
+          </button>
+        </form>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 12: ZONA DE PERIGO -->
+    <section id="section-perigo" class="admin-section hidden space-y-4">
+      
+      <div class="bg-red-50 border border-red-200 rounded-lg p-6 max-w-lg">
+        <div class="flex items-center gap-3 text-red-800 mb-3">
+          <i class="fas fa-exclamation-triangle text-2xl"></i>
+          <h2 class="text-base font-bold">Zona de Risco Operacional</h2>
+        </div>
+        
+        <p class="text-xs text-red-700 leading-relaxed mb-6">
+          As ações abaixo são irreversíveis e afetam diretamente a integridade da base de dados de produção. Certifique-se de que possui backups recentes antes de prosseguir.
+        </p>
+
+        <div class="pt-4 border-t border-red-200 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold text-red-900">Limpeza de Histórico Antigo</p>
+            <p class="text-[10px] text-red-600">Remove encomendas concluídas ou canceladas há mais de 30 dias.</p>
+          </div>
+
+          <button onclick="AdminApp.handleDeleteHistory()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded text-xs shadow transition-colors">
+            Limpar Histórico
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================================================== -->
+  <!-- MODAIS ADMINISTRATIVOS -->
+  <!-- ================================================== -->
+
+  <!-- Modal: Atribuir Motorista -->
+  <div id="modal-assign" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden animate-scale-up">
+      <div class="bg-[#1B2A4A] text-white p-4 flex items-center justify-between">
+        <h3 class="font-bold text-sm">Atribuir Motorista à Entrega</h3>
+        <button onclick="window.UI.closeModal('modal-assign')" class="text-white/80 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <form id="form-assign-order" class="p-4 space-y-4 text-xs">
+        <input type="hidden" id="assign-order-id">
+        
+        <div>
+          <label class="block font-semibold text-gray-700 mb-1">Selecione o Motorista Disponível</label>
+          <select id="assign-driver-select" required class="w-full p-2.5 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            <!-- Injetado via JS -->
+          </select>
+          <span class="text-[10px] text-gray-400 block mt-1">Apenas motoristas com o estado "Online (Livre)" são listados.</span>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="window.UI.closeModal('modal-assign')" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded">
+            Cancelar
+          </button>
+          <button type="submit" class="px-4 py-2 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow">
+            Confirmar Atribuição
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Detalhes da Encomenda -->
+  <div id="modal-details" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full overflow-hidden animate-scale-up flex flex-col max-h-[90vh]">
+      <div class="bg-[#2F7A3C] text-white p-4 flex items-center justify-between shrink-0">
+        <h3 class="font-bold text-sm">Ficha Técnica da Encomenda</h3>
+        <button onclick="window.UI.closeModal('modal-details')" class="text-white/80 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div id="details-modal-content" class="p-6 overflow-y-auto flex-1 space-y-4">
+        <!-- Injetado via JS -->
+      </div>
+
+      <div class="p-4 border-t bg-gray-50 flex justify-end shrink-0">
+        <button onclick="window.UI.closeModal('modal-details')" class="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white font-bold rounded text-xs">
+          Fechar Ficha
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================== -->
+  <!-- SCRIPTS CDNs -->
+  <!-- ================================================== -->
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- ================================================== -->
+  <!-- SCRIPTS INTERNOS -->
+  <!-- ================================================== -->
+  <script src="js/common/api.js"></script>
+  <script src="js/common/ui.js"></script>
+  <script src="js/common/auth.js"></script>
+  <script src="js/admin/app.js"></script>
+
+  <script>
+    // Inicializar o Dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.AdminApp) {
+        window.AdminApp.init();
+      }
+    });
+  </script>
+</body>
+</html>
