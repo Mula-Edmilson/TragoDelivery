@@ -1,1092 +1,823 @@
 <!DOCTYPE html>
-<html lang="pt-mz">
+<html lang="pt-MZ">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Trago Delivery</title>
-    <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
-    
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-     crossorigin=""/>
-    
-    <!-- Fonts & Icons -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    
-    <!-- Custom CSS -->
-    <link rel="stylesheet" href="global.css">
-    <link rel="stylesheet" href="dashboard.css">
-    <link rel="stylesheet" href="trago-system.css">
-    
-    <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-     crossorigin=""></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.socket.io/4.7.0/socket.io.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Central - Trago Delivery</title>
+  
+  <!-- CDNs -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    /* Estilos personalizados para o marcador do motorista no mapa */
+    .custom-driver-marker { display: flex; align-items: center; justify-content: center; }
+  </style>
 </head>
-<body class="dashboard-body">
-    <!-- Animated Background -->
-    <div class="background"></div>
-    <div class="orb orb-1"></div>
-    <div class="orb orb-2"></div>
-    <div class="orb orb-3"></div>
+<body class="bg-[#F7F8F3] text-[#272324] min-h-screen flex flex-col lg:flex-row">
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <img src="assets/logo.svg" alt="Logotipo Trago Delivery" class="dashboard-logo">
+  <!-- ================================================== -->
+  <!-- BARRA LATERAL (SIDEBAR) -->
+  <!-- ================================================== -->
+  <aside class="bg-[#1B2A4A] text-white w-full lg:w-64 shrink-0 flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-white/10 lg:sticky lg:top-0 lg:h-screen">
+    
+    <!-- Topo da Sidebar: Branding & Toggle Mobile -->
+    <div class="p-4 flex items-center justify-between border-b border-white/10">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded bg-[#2F7A3C] flex items-center justify-center font-bold text-sm tracking-wider shadow">
+          TD
         </div>
-
-        <ul class="sidebar-menu">
-            <li class="nav-section">
-                <span class="nav-section-title">Menu Principal</span>
-                <ul>
-                    <li class="menu-item active" id="nav-visao-geral">
-                        <a href="#">
-                            <i class="fas fa-tachometer-alt"></i>
-                            <span>Visão Geral</span>
-                        </a>
-                    </li>
-
-                    <li class="menu-item has-submenu">
-                        <a href="#">
-                            <i class="fas fa-plus-circle"></i>
-                            <span>Nova Entrega</span>
-                        </a>
-                        <ul class="submenu">
-                            <li><a href="#" id="nav-form-rapido"><i class="fas fa-bolt"></i> Delivery Rápido</a></li>
-                            <li><a href="#" id="nav-form-doc"><i class="fas fa-file-alt"></i> Tramitação de Documentos</a></li>
-                            <li><a href="#" id="nav-form-farma"><i class="fas fa-pills"></i> Produtos Farmacêuticos</a></li>
-                            <li><a href="#" id="nav-form-carga"><i class="fas fa-truck"></i> Transporte de Cargas</a></li>
-                            <li><a href="#" id="nav-form-outros"><i class="fas fa-ellipsis-h"></i> Outros Serviços</a></li>
-                        </ul>
-                    </li>
-
-                    <li class="menu-item" id="nav-entregas">
-                        <a href="#">
-                            <i class="fas fa-tasks"></i>
-                            <span>Entregas Activas</span>
-                        </a>
-                    </li>
-
-                    <li class="menu-item" id="nav-motoristas">
-                        <a href="#">
-                            <i class="fas fa-motorcycle"></i>
-                            <span>Motoristas</span>
-                        </a>
-                    </li>
-
-                    <li class="menu-item" id="nav-clientes">
-                        <a href="#">
-                            <i class="fas fa-users"></i>
-                            <span>Clientes</span>
-                        </a>
-                    </li>
-
-                    <li class="menu-item" id="nav-custos">
-                        <a href="#">
-                            <i class="fas fa-money-bill-wave"></i>
-                            <span>Custos</span>
-                        </a>
-                    </li>
-
-                    <li class="menu-item" id="nav-cargos">
-                        <a href="#">
-                            <i class="fas fa-id-badge"></i>
-                            <span>Cargos</span>
-                        </a>
-                    </li>
-
-                    <li class="menu-item" id="nav-historico">
-                        <a href="#">
-                            <i class="fas fa-history"></i>
-                            <span>Histórico</span>
-                        </a>
-                    </li>
-
-                    <li class="menu-item" id="nav-mapa">
-                        <a href="#">
-                            <i class="fas fa-map-marked-alt"></i>
-                            <span>Mapa em Tempo Real</span>
-                        </a>
-                    </li>
-
-                    <li class="menu-item" id="nav-config">
-                        <a href="#">
-                            <i class="fas fa-cog"></i>
-                            <span>Configurações</span>
-                        </a>
-                    </li>
-                </ul>
-            </li>
-        </ul>
-
-        <div class="sidebar-footer">
-            <div class="user-profile">
-                <div class="user-avatar">
-                    <i class="fas fa-user-shield"></i>
-                </div>
-                <div class="user-info">
-                    <div class="user-name" id="admin-name">Admin</div>
-                    <div class="user-role">Administrador</div>
-                </div>
-            </div>
-            <div class="menu-item-logout" id="admin-logout">
-                <a href="#">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Sair</span>
-                </a>
-            </div>
+        <div>
+          <span class="text-sm font-bold tracking-tight block">TRAGO DELIVERY</span>
+          <span class="text-[9px] text-[#8DC543] uppercase tracking-widest block">Portal Central</span>
         </div>
-    </aside>
+      </div>
 
-    <!-- MAIN CONTENT -->
-    <main class="main-content">
-        <!-- Header -->
-        <header class="main-header">
-            <div class="page-header">
-                <button class="btn-mobile-menu" id="mobile-menu-toggle">
-                    <i class="fas fa-bars"></i>
-                </button>
-                <h1 class="page-title" id="main-title">Visão Geral</h1>
-                <div class="page-breadcrumb">
-                    <a href="#">Dashboard</a>
-                    <span>/</span>
-                    <span id="current-page">Visão Geral</span>
-                </div>
-            </div>
-            <div class="navbar-right">
-                <button class="nav-btn" id="theme-toggle" title="Alternar Tema">
-                    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/>
-                        <path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/>
-                        <path d="M2 12h2"/><path d="M20 12h2"/>
-                        <path d="M6.34 17.66l-1.41 1.41"/><path d="M19.07 4.93l-1.41 1.41"/>
-                    </svg>
-                    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display: none;">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                    </svg>
-                </button>
-                <div class="admin-profile">
-                    <span>Olá, <strong id="admin-name-header">Admin</strong></span>
-                    <i class="fas fa-user-circle"></i>
-                </div>
-            </div>
-        </header>
+      <!-- Botão Menu Mobile -->
+      <button onclick="document.getElementById('mobile-menu').classList.toggle('hidden')" class="p-1 lg:hidden text-gray-300 hover:text-white">
+        <i class="fas fa-bars text-xl"></i>
+      </button>
+    </div>
 
-        <!-- Content Area -->
-        <div class="content-area">
+    <!-- Navegação / Menu (Escondido por omissão em Mobile) -->
+    <div id="mobile-menu" class="hidden lg:flex flex-1 flex-col justify-between p-4 overflow-y-auto">
+      
+      <!-- Links Principais -->
+      <nav class="space-y-1">
+        
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-1">Geral</p>
+        
+        <button data-section="visao-geral" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-white bg-[#2F7A3C] transition-colors">
+          <i class="fas fa-chart-pie w-4 text-center"></i> Visão Geral
+        </button>
 
-            <!-- VISÃO GERAL -->
-            <div id="visao-geral" class="content-page">
-                <!-- Stats Cards -->
-                <section class="stats-grid">
-                    <div class="glass-card glass-card-3d stat-card card-warning">
-                        <div class="stat-card-inner">
-                            <div class="stat-info">
-                                <h3><i class="fas fa-clock"></i> Pendentes</h3>
-                                <div class="stat-value" id="stats-pendentes">.</div>
-                            </div>
-                        </div>
-                    </div>
+        <button data-section="criar-entrega" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-plus-circle w-4 text-center"></i> Nova Entrega
+        </button>
 
-                    <div class="glass-card glass-card-3d stat-card card-info">
-                        <div class="stat-card-inner">
-                            <div class="stat-info">
-                                <h3><i class="fas fa-truck"></i> Em Trânsito</h3>
-                                <div class="stat-value" id="stats-em-transito">.</div>
-                            </div>
-                        </div>
-                    </div>
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-3 mb-1">Operações</p>
 
-                    <div class="glass-card glass-card-3d stat-card card-success">
-                        <div class="stat-card-inner">
-                            <div class="stat-info">
-                                <h3><i class="fas fa-check-circle"></i> Concluídas (Hoje)</h3>
-                                <div class="stat-value" id="stats-concluidas-hoje">.</div>
-                            </div>
-                        </div>
-                    </div>
+        <button data-section="entregas" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-boxes w-4 text-center"></i> Entregas Ativas
+        </button>
 
-                    <div class="glass-card glass-card-3d stat-card card-success">
-                        <div class="stat-card-inner">
-                            <div class="stat-info">
-                                <h3><i class="fas fa-motorcycle"></i> Motoristas Online</h3>
-                                <div class="stat-value" id="stats-motoristas-online">.</div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+        <button data-section="historico" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-history w-4 text-center"></i> Histórico
+        </button>
 
-                <!-- Financial Stats -->
-                <h2 class="section-title">Financeiro (Este Mês)</h2>
-                <section class="stats-grid">
-                    <div class="glass-card glass-card-3d stat-card card-success">
-                        <div class="stat-card-inner">
-                            <div class="stat-info">
-                                <h3><i class="fas fa-dollar-sign"></i> Receita Total</h3>
-                                <div class="stat-value" id="stats-receita-total">.</div>
-                            </div>
-                        </div>
-                    </div>
+        <button data-section="mapa" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-map-marked-alt w-4 text-center"></i> Mapa em Tempo Real
+        </button>
 
-                    <div class="glass-card glass-card-3d stat-card card-info">
-                        <div class="stat-card-inner">
-                            <div class="stat-info">
-                                <h3><i class="fas fa-wallet"></i> Lucro da Empresa</h3>
-                                <div class="stat-value" id="stats-lucro-empresa">.</div>
-                            </div>
-                        </div>
-                    </div>
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-3 mb-1">Entidades</p>
 
-                    <div class="glass-card glass-card-3d stat-card card-warning">
-                        <div class="stat-card-inner">
-                            <div class="stat-info">
-                                <h3><i class="fas fa-motorcycle"></i> Ganhos (Motoristas)</h3>
-                                <div class="stat-value" id="stats-ganhos-motorista">.</div>
-                            </div>
-                        </div>
-                    </div>
+        <button data-section="motoristas" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-users w-4 text-center"></i> Motoristas
+        </button>
 
-                    <div class="glass-card glass-card-3d stat-card">
-                        <div class="stat-card-inner">
-                            <div class="stat-info">
-                                <h3><i class="fas fa-trophy"></i> Top Motorista</h3>
-                                <div class="stat-value stat-value-condensed" id="stats-top-driver">.</div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+        <button data-section="clientes" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-handshake w-4 text-center"></i> Clientes
+        </button>
 
-                <!-- Charts -->
-                <section class="charts-grid">
-                    <div class="glass-card chart-container" id="main-chart-container">
-                        <div class="chart-header">
-                            <h3>Desempenho dos Serviços</h3>
-                            
-                        </div>
-                        <canvas id="servicesChart"></canvas>
-                    </div>
-                    
-                    <div class="glass-card chart-container" id="deliveries-chart-container">
-                        <h3>Entregas Ativas</h3>
-                        <canvas id="deliveriesStatusChart"></canvas>
-                    </div>
-                    
-                    <div class="glass-card chart-container" id="financialChartContainer">
-                        <h3>Divisão da Receita (Este Mês)</h3>
-                        <canvas id="financialPieChart"></canvas>
-                    </div>
-                </section>
-            </div>
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-3 mb-1">Finanças & Gestão</p>
 
-            <!-- NOVA ENTREGA -->
-            <div id="form-nova-entrega" class="content-page hidden">
-                <div class="glass-card">
-                    <form id="delivery-form">
-                        <input type="hidden" id="service-type" name="service_type">
-                        <input type="hidden" id="delivery-client-id" name="clientId">
-                        
-                        <h2 class="section-title">Nova Entrega</h2>
-                        
-                        <div class="form-section">
-                            <h3>Cliente</h3>
-                            <div class="form-group form-group-large">
-                                <label for="delivery-client-select">Cliente Registado (Opcional)</label>
-                                <select id="delivery-client-select" class="form-input">
-                                    <option value="">-- Ou digite manualmente abaixo --</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="form-section">
-                            <h3>Dados do Cliente/Destinatário</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="client-name">Nome Completo</label>
-                                    <input type="text" id="client-name" name="client_name" class="form-input" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="client-phone1">Número Principal</label>
-                                    <input type="tel" id="client-phone1" name="client_phone1" class="form-input" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="client-phone2">Número Alternativo</label>
-                                    <input type="tel" id="client-phone2" name="client_phone2" class="form-input">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-section">
-                            <h3>Detalhes da Encomenda</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="delivery-price">Valor da Encomenda (MZN)</label>
-                                    <input type="number" id="delivery-price" name="price" min="0" step="0.01" class="form-input" required placeholder="Ex: 500.00">
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="payment-method">Método de Pagamento</label>
-                                <select id="payment-method" name="payment_method" class="form-input">
-                                    <option value="cash">Dinheiro</option>
-                                    <option value="mpesa">M-Pesa</option>
-                                    <option value="emola">Emola</option>
-                                    <option value="mkesh">M-Kesh</option>
-                                    <option value="bank_transfer">Transferência Bancária</option>
-                                </select>
-                            </div>
+        <button data-section="custos" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-money-bill-wave w-4 text-center"></i> Custos da Empresa
+        </button>
 
-                            <div class="form-group">
-                                <label for="delivery-image"><i class="fas fa-image"></i> Imagem da Encomenda (Opcional)</label>
-                                <input type="file" id="delivery-image" name="deliveryImage" accept="image/*" class="form-input">
-                                <small>Faça upload de uma foto da encomenda para fácil identificação.</small>
-                                <div id="image-preview" class="image-preview hidden">
-                                    <img src="" alt="Pré-visualização da Imagem" class="preview-img">
-                                    <button type="button" class="remove-image-btn" onclick="removeImage()">×</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-section">
-                            <h3>Detalhes do Destino</h3>
-                            <div class="form-row">
-                                <div class="form-group form-group-large">
-                                    <label for="delivery-address">Endereço Final (escrito)</label>
-                                    <input type="text" id="delivery-address" name="address_text" class="form-input" placeholder="Ex: Av. Julius Nyerere, 123, Maputo">
-                                </div>
-                            </div>
-                            <label>Pin do Endereço no Mapa</label>
-                            <div id="map"></div>
-                            <input type="hidden" id="delivery-lng" name="lng">
-                            <input type="hidden" id="delivery-lat" name="lat">
-                        </div>
+        <button data-section="despesas" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-file-invoice-dollar w-4 text-center"></i> Despesas Lançadas
+        </button>
 
-                        <div class="form-group checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="autoAssignCheckbox" name="autoAssign" value="true">
-                                <span>Atribuir automaticamente (motorista mais próximo)</span>
-                            </label>
-                            <small>Requer que um pin seja definido no mapa.</small>
-                        </div>
-                        
-                        <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-paper-plane"></i> Gerar Pedido
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+        <button data-section="cargos" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-user-shield w-4 text-center"></i> Gestores / Perfis
+        </button>
 
-            <!-- GESTÃO DE MOTORISTAS -->
-            <div id="gestao-motoristas" class="content-page hidden">
-                <div class="glass-card table-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">Motoristas Registados</h2>
-                            <p class="card-subtitle">Lista de todos os motoristas da frota</p>
-                        </div>
-                        <div class="card-actions">
-                            <button class="btn btn-primary" onclick="showAddDriverForm(true)">
-                                <i class="fas fa-plus"></i> Novo Motorista
-                            </button>
-                        </div>
-                    </div>
-                    <div class="table-wrapper">
-                        <table class="data-table table-motoristas">
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>Telefone</th>
-                                    <th>Viatura</th>
-                                    <th>Estado</th>
-                                    <th>Acções</th>
-                                </tr>
-                            </thead>
-                            <tbody id="drivers-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+        <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 pt-3 mb-1">Sistema</p>
 
-            <!-- GESTÃO DE CLIENTES -->
-            <div id="gestao-clientes" class="content-page hidden">
-                <div class="glass-card table-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">Clientes Registados</h2>
-                            <p class="card-subtitle">Lista de todos os clientes</p>
-                        </div>
-                        <div class="card-actions">
-                            <button class="btn btn-primary" onclick="showAddClientForm(true)">
-                                <i class="fas fa-plus"></i> Novo Cliente
-                            </button>
-                        </div>
-                    </div>
-                    <div class="table-wrapper">
-                        <table class="data-table table-motoristas">
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th>Telefone</th>
-                                    <th>Empresa</th>
-                                    <th>Acções</th>
-                                </tr>
-                            </thead>
-                            <tbody id="clients-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+        <button data-section="configuracoes" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-[#50494B] hover:bg-white/5 transition-colors">
+          <i class="fas fa-cog w-4 text-center"></i> Configurações
+        </button>
 
-            <!-- CUSTOS -->
-            <div id="custos" class="content-page hidden">
-                <div class="custos-header">
-                    <div>
-                        <h2 class="page-title">Gestão de Custos</h2>
-                        <p class="page-subtitle">Registe despesas da empresa e acompanhe o histórico</p>
-                    </div>
-                    <button type="button" class="btn btn-primary" id="btn-export-costs-excel">
-                        <i class="fas fa-file-excel"></i> Exportar Excel
-                    </button>
-                </div>
-            
-                <section class="stats-grid">
-                    <div class="glass-card stat-card card-danger">
-                        <div class="stat-info">
-                            <h3><i class="fas fa-file-invoice-dollar"></i> Despesas da Empresa</h3>
-                            <div class="stat-value" id="stats-despesas-mes">.</div>
-                        </div>
-                    </div>
-                    <div class="glass-card stat-card card-success">
-                        <div class="stat-info">
-                            <h3><i class="fas fa-chart-line"></i> Saldo (Receita - Despesas)</h3>
-                            <div class="stat-value" id="stats-saldo-mes">.</div>
-                        </div>
-                    </div>
-                </section>
-            
-                <div class="costs-layout">
-                    <!-- Formulário -->
-                    <div class="glass-card costs-form-card">
-                        <h3><i class="fas fa-plus-circle"></i> Registar Custo da Empresa</h3>
-                        <form id="form-add-cost">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="cost-category">Categoria</label>
-                                    <select id="cost-category" class="form-input" required>
-                                        <option value="">-- Selecione --</option>
-                                        <option value="salarios">Salários</option>
-                                        <option value="renda">Renda</option>
-                                        <option value="manutencao">Manutenção</option>
-                                        <option value="comunicacao">Comunicação</option>
-                                        <option value="marketing">Marketing</option>
-                                        <option value="combustivel">Combustível</option>
-                                        <option value="diversos">Diversos</option>
-                                    </select>
-                                </div>
-                                <div class="form-group">
-                                    <label for="cost-amount">Valor (MZN)</label>
-                                    <input type="number" id="cost-amount" min="0" step="0.01" class="form-input" required placeholder="Ex: 15000.00">
-                                </div>
-                            </div>
+        <button data-section="perigo" class="nav-link w-full text-left flex items-center gap-2.5 px-3 py-2 rounded text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors">
+          <i class="fas fa-exclamation-triangle w-4 text-center"></i> Zona de Perigo
+        </button>
 
-                            <div class="form-group">
-                                <label for="cost-assigned-entity">Atribuir a (opcional)</label>
-                                <select id="cost-assigned-entity" class="form-input">
-                                    <option value="">-- Não atribuir --</option>
-                                </select>
-                                <small>Selecione um funcionário ou cliente para associar este custo.</small>
-                            </div>
+      </nav>
 
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="cost-date">Data</label>
-                                    <input type="date" id="cost-date" class="form-input">
-                                </div>
-                            </div>
-            
-                            <div class="form-group">
-                                <label for="cost-description">Descrição</label>
-                                <input type="text" id="cost-description" class="form-input" placeholder="Ex: Salário Novembro, renda escritório, campanha marketing.">
-                            </div>
-            
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Guardar Custo
-                            </button>
-                        </form>
-                    </div>
-            
-                    <!-- Tabela de últimos custos -->
-                    <div class="glass-card costs-list-card">
-                        <h3><i class="fas fa-list-ul"></i> Últimos Custos Registados</h3>
-                        <div class="table-wrapper scroll-compact">
-                            <table class="data-table table-pedidos">
-                                <thead>
-                                    <tr>
-                                        <th>Data</th>
-                                        <th>Categoria</th>
-                                        <th>Atribuído a</th>
-                                        <th>Descrição</th>
-                                        <th>Valor</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="costs-latest-table-body">
-                                    <tr><td colspan="5">Sem registos de custos.</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            
-                <div class="charts-grid">
-                    <div class="glass-card chart-container" id="costsByCategoryContainer">
-                        <h3>Despesas por Categoria (Mês Atual)</h3>
-                        <canvas id="costsByCategoryChart"></canvas>
-                    </div>
-            
-                    <div class="glass-card chart-container" id="revenueVsCostsContainer">
-                        <h3>Receita vs Custos (Histórico)</h3>
-                        <canvas id="revenueVsCostsChart"></canvas>
-                    </div>
-                </div>
-            </div>
+      <!-- Rodapé da Sidebar: Info do Utilizador -->
+      <div class="pt-4 border-t border-white/10 mt-6">
+        <div class="flex items-center justify-between">
+          <div class="text-xs truncate">
+            <span class="text-gray-400 block text-[9px] uppercase font-bold">Sessão Ativa</span>
+            <span class="font-bold text-white truncate max-w-[130px] inline-block" id="admin-user-name">Carregando...</span>
+          </div>
 
-            <!-- CARGOS -->
-            <div id="cargos" class="content-page hidden">
-                <div class="glass-card">
-                    <h2 class="section-title">Gestão de Cargos & Perfis</h2>
-                    <p class="page-subtitle">Crie novos utilizadores do sistema: motoristas, gestores e clientes.</p>
-                
-                    <div class="form-section section-spaced">
-                        <h3>Funcionários (Motoristas)</h3>
-                        <button class="btn btn-primary" onclick="showAddDriverForm(true)" id="btn-show-driver-form">
-                            <i class="fas fa-plus"></i> Adicionar Novo Motorista
-                        </button>
-                
-                        <form id="form-add-motorista" class="hidden glass-card nested-form-card">
-                            <h3>Dados do Novo Motorista</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="driver-name">Nome Completo</label>
-                                    <input type="text" id="driver-name" class="form-input" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="driver-phone">Telefone</label>
-                                    <input type="tel" id="driver-phone" class="form-input" required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="driver-email">Email (para login)</label>
-                                    <input type="email" id="driver-email" class="form-input" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="driver-password">Senha (para o motorista)</label>
-                                    <input type="password" id="driver-password" class="form-input" required minlength="6">
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="driver-plate">Viatura (Placa)</label>
-                                    <input type="text" id="driver-plate" class="form-input" placeholder="Ex: MXX-123-MP">
-                                </div>
-                                <div class="form-group">
-                                    <label for="driver-commission">Comissão (%)</label>
-                                    <input type="number" id="driver-commission" value="20" min="0" max="100" step="1" class="form-input">
-                                </div>
-                            </div>
-                            <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">Salvar Motorista</button>
-                                <button type="button" class="btn btn-secondary" onclick="showAddDriverForm(false)">Cancelar</button>
-                            </div>
-                        </form>
-                    </div>
-                
-                    <div class="form-section section-spaced">
-                        <h3>Clientes</h3>
-                        <button class="btn btn-primary" onclick="showAddClientForm(true)" id="btn-show-client-form">
-                            <i class="fas fa-plus"></i> Adicionar Novo Cliente
-                        </button>
-                
-                        <form id="form-add-cliente" class="hidden glass-card nested-form-card">
-                            <h3>Dados do Novo Cliente</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="client-nome">Nome Completo</label>
-                                    <input type="text" id="client-nome" class="form-input" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="client-telefone">Telefone (Obrigatório)</label>
-                                    <input type="tel" id="client-telefone" class="form-input" required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="client-empresa">Empresa (Opcional)</label>
-                                    <input type="text" id="client-empresa" class="form-input">
-                                </div>
-                                <div class="form-group">
-                                    <label for="client-email">Email (Opcional)</label>
-                                    <input type="email" id="client-email" class="form-input">
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="client-nuit">NUIT (Opcional)</label>
-                                    <input type="text" id="client-nuit" class="form-input">
-                                </div>
-                                <div class="form-group">
-                                    <label for="client-endereco">Endereço (Opcional)</label>
-                                    <input type="text" id="client-endereco" class="form-input">
-                                </div>
-                            </div>
-                            <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">Salvar Cliente</button>
-                                <button type="button" class="btn btn-secondary" onclick="showAddClientForm(false)">Cancelar</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ENTREGAS ATIVAS -->
-            <div id="entregas-activas" class="content-page hidden">
-                <div class="glass-card table-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">Gestão de Encomendas Activas</h2>
-                            <p class="card-subtitle">Acompanhe e atribua encomendas em tempo real</p>
-                        </div>
-                    </div>
-                    <div class="table-wrapper">
-                        <table class="data-table table-pedidos">
-                            <thead>
-                                <tr>
-                                    <th>ID Pedido</th>
-                                    <th>Cliente</th>
-                                    <th>Telefone</th>
-                                    <th>Estado</th>
-                                    <th>Motorista</th>
-                                    <th>Código</th>
-                                    <th>Acção</th>
-                                </tr>
-                            </thead>
-                            <tbody id="active-orders-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- HISTÓRICO -->
-            <div id="historico" class="content-page hidden">
-                <div class="glass-card table-card">
-                    <div class="card-header">
-                        <div>
-                            <h2 class="card-title">Histórico de Encomendas</h2>
-                            <p class="card-subtitle">Todas as encomendas concluídas e arquivadas</p>
-                        </div>
-                    </div>
-                    
-                    <div class="search-container">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="history-search-input" class="form-input" placeholder="Pesquisar no histórico (ID, Cliente, Motorista...)">
-                    </div>
-                    
-                    <div class="table-wrapper">
-                        <table class="data-table table-pedidos">
-                            <thead>
-                                <tr>
-                                    <th>ID Pedido</th>
-                                    <th>Cliente</th>
-                                    <th>Natureza do Pedido</th>
-                                    <th>Motorista</th>
-                                    <th>Pagamento</th>
-                                    <th>Duração</th>
-                                    <th>Código</th>
-                                    <th>Acções</th>
-                                </tr>
-                            </thead>
-                            <tbody id="history-orders-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- MAPA TEMPO REAL -->
-            <div id="mapa-tempo-real" class="content-page hidden">
-                <div class="glass-card map-card-shell">
-                    <div id="live-map-container"></div>
-                </div>
-            </div>
-
-            <!-- CONFIGURAÇÕES -->
-            <div id="configuracoes" class="content-page hidden">
-                <div class="glass-card">
-                    <h2 class="section-title">Segurança da Conta</h2>
-                    
-                    <form id="form-change-password">
-                        <p>Altere a sua senha de administrador. Você será desconectado após a alteração.</p>
-                        
-                        <div class="form-group">
-                            <label for="admin-pass-antiga">Senha Antiga</label>
-                            <input type="password" id="admin-pass-antiga" class="form-input" required>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="admin-pass-nova">Nova Senha (mín. 6 caracteres)</label>
-                                <input type="password" id="admin-pass-nova" class="form-input" required minlength="6">
-                            </div>
-                            <div class="form-group">
-                                <label for="admin-pass-confirmar">Confirmar Nova Senha</label>
-                                <input type="password" id="admin-pass-confirmar" class="form-input" required minlength="6">
-                            </div>
-                        </div>
-                        
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-key"></i> Atualizar Senha
-                        </button>
-                    </form>
-                    
-                    <div class="form-section section-spaced-lg">
-                        <h3 class="danger-title">Zona de Perigo</h3>
-                        <div id="zona-de-perigo">
-                            <p>Ações administrativas perigosas. Estas ações são irreversíveis.</p>
-                            
-                            <button class="btn btn-danger" id="btn-delete-old-history">
-                                <i class="fas fa-trash"></i> Apagar Histórico Antigo
-                            </button>
-                            <small class="inline-note">Apaga todas as encomendas concluídas com mais de 30 dias.</small>
-                            
-                            <button class="btn btn-danger section-spaced" disabled>
-                                <i class="fas fa-users-slash"></i> Apagar Clientes Inativos (brevemente)
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+          <button onclick="window.Auth.handleLogout('admin')" class="p-1.5 bg-white/5 hover:bg-red-600 rounded text-gray-300 hover:text-white transition-colors" title="Terminar Sessão">
+            <i class="fas fa-sign-out-alt"></i>
+          </button>
         </div>
+      </div>
 
-        <!-- MODAIS -->
-        <div id="assign-modal" class="modal-backdrop hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Atribuir Encomenda <span id="modal-order-id"></span></h3>
-                    <button class="modal-close-btn" onclick="closeAssignModal()">×</button>
-                </div>
-                <div class="modal-body">
-                    <p>Selecione um motorista disponível:</p>
-                    <select id="driver-select-dropdown" class="form-input">
-                        <option value="">A carregar...</option>
-                    </select>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-primary" id="btn-confirm-assign">Confirmar</button>
-                    <button type="button" class="btn btn-secondary" onclick="closeAssignModal()">Cancelar</button>
-                </div>
-            </div>
-        </div>
+    </div>
 
-        <div id="edit-driver-modal" class="modal-backdrop hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Editar Motorista</h3>
-                    <button class="modal-close-btn" onclick="closeEditDriverModal()">×</button>
-                </div>
-                <form id="form-edit-motorista">
-                    <div class="modal-body">
-                        <input type="hidden" id="edit-driver-id">
-                        
-                        <div class="form-group">
-                            <label for="edit-driver-name">Nome Completo</label>
-                            <input type="text" id="edit-driver-name" class="form-input" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="edit-driver-phone">Telefone</label>
-                            <input type="tel" id="edit-driver-phone" class="form-input" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="edit-driver-plate">Viatura (Placa)</label>
-                            <input type="text" id="edit-driver-plate" class="form-input">
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-driver-commission">Comissão (%)</label>
-                                <input type="number" id="edit-driver-commission" value="20" min="0" max="100" step="1" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-driver-status">Estado</label>
-                                <select id="edit-driver-status" class="form-input" required>
-                                    <option value="online_livre">Online (Livre)</option>
-                                    <option value="online_ocupado">Online (Ocupado)</option>
-                                    <option value="offline">Offline</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeEditDriverModal()">Cancelar</button>
-                    </div>
-                </form>
-            </div>
+  </aside>
+
+  <!-- ================================================== -->
+  <!-- ÁREA DE CONTEÚDO PRINCIPAL -->
+  <!-- ================================================== -->
+  <main class="flex-1 p-4 lg:p-8 overflow-y-auto max-w-7xl mx-auto w-full">
+
+    <!-- SECÇÃO 1: VISÃO GERAL -->
+    <section id="section-visao-geral" class="admin-section space-y-6">
+      
+      <!-- Barra Superior de Boas-vindas -->
+      <div class="bg-white p-4 lg:p-6 rounded-lg border border-gray-200 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold">Centro de Operações</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Visão consolidada das métricas de entrega e estado da frota.</p>
         </div>
         
-        <div id="history-detail-modal" class="modal-backdrop hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Detalhes da Encomenda <span id="history-modal-id"></span></h3>
-                    <button class="modal-close-btn" onclick="closeHistoryDetailModal()">×</button>
-                </div>
-                <div class="modal-body" id="history-modal-body">
-                    <p>A carregar detalhes...</p>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeHistoryDetailModal()">Fechar</button>
-                </div>
-            </div>
+        <div class="flex items-center gap-2">
+          <button onclick="AdminApp.showSection('criar-entrega')" class="px-3 py-2 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded text-xs shadow flex items-center gap-1.5 transition-colors">
+            <i class="fas fa-plus"></i> Nova Entrega
+          </button>
+          <button onclick="AdminApp.loadOverview()" class="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded text-xs" title="Atualizar Dados">
+            <i class="fas fa-sync-alt"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Métricas Rápidas (Cards) -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between text-gray-400">
+            <span class="text-xs font-bold uppercase tracking-wider">Pendentes</span>
+            <i class="fas fa-clock text-lg text-yellow-500"></i>
+          </div>
+          <p class="text-2xl font-bold mt-2" id="stat-pendentes">0</p>
+          <span class="text-[10px] text-gray-500 block mt-1">Aguardam atribuição ou recolha</span>
         </div>
 
-        <div id="chart-reset-modal" class="modal-backdrop hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Resetar Estatísticas</h3>
-                    <button class="modal-close-btn" id="btn-close-chart-reset">×</button>
-                </div>
-                <div class="modal-body">
-                    <p>Esta ação é irreversível. Digite a senha de reset para confirmar:</p>
-                    <div class="form-group">
-                        <label for="chart-reset-password">Senha</label>
-                        <input type="password" id="chart-reset-password" class="form-input" placeholder="TragoDelivery.wipe">
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-danger" id="btn-confirm-chart-reset">Confirmar Reset</button>
-                    <button type="button" class="btn btn-secondary" id="btn-cancel-chart-reset">Cancelar</button>
-                </div>
-            </div>
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between text-gray-400">
+            <span class="text-xs font-bold uppercase tracking-wider">Em Trânsito</span>
+            <i class="fas fa-route text-lg text-blue-500"></i>
+          </div>
+          <p class="text-2xl font-bold mt-2 text-[#2F7A3C]" id="stat-em-transito">0</p>
+          <span class="text-[10px] text-gray-500 block mt-1">Em processo de recolha ou entrega</span>
         </div>
 
-        <div id="custom-alert-modal" class="modal-backdrop hidden">
-            <div class="modal-content modal-alert">
-                <div class="modal-header">
-                    <h3 id="custom-alert-title"></h3>
-                    <button class="modal-close-btn" onclick="closeCustomAlert()">×</button>
-                </div>
-                <div class="modal-body">
-                    <p id="custom-alert-message"></p>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-primary" onclick="closeCustomAlert()">OK</button>
-                </div>
-            </div>
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between text-gray-400">
+            <span class="text-xs font-bold uppercase tracking-wider">Concluídas Hoje</span>
+            <i class="fas fa-check-circle text-lg text-[#3DAA50]"></i>
+          </div>
+          <p class="text-2xl font-bold mt-2" id="stat-concluidas">0</p>
+          <span class="text-[10px] text-gray-500 block mt-1">Finalizadas com código nas últimas 24h</span>
         </div>
 
-        <div id="driver-report-modal" class="modal-backdrop hidden">
-            <div class="modal-content modal-large">
-                <div class="modal-header">
-                    <h3 id="driver-report-title">Relatório do Motorista</h3>
-                    <button class="modal-close-btn" onclick="closeDriverReportModal()">×</button>
-                </div>
-                <div class="modal-body">
-                    <div class="report-summary">
-                        <div class="summary-card">
-                            <span>Total de Entregas</span>
-                            <strong id="report-total-entregas">...</strong>
-                        </div>
-                        <div class="summary-card">
-                            <span>Tempo Total em Rota</span>
-                            <strong id="report-total-duracao">...</strong>
-                        </div>
-                    </div>
-                    <h4>Histórico de Entregas Concluídas</h4>
-                    <div class="table-wrapper scroll-medium">
-                        <table class="data-table table-pedidos">
-                            <thead>
-                                <tr>
-                                    <th>ID Pedido</th>
-                                    <th>Cliente</th>
-                                    <th>Natureza</th>
-                                    <th>Concluído Em</th>
-                                    <th>Duração</th>
-                                </tr>
-                            </thead>
-                            <tbody id="driver-report-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeDriverReportModal()">Fechar</button>
-                </div>
-            </div>
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between text-gray-400">
+            <span class="text-xs font-bold uppercase tracking-wider">Frota Ativa</span>
+            <i class="fas fa-signal text-lg text-green-600"></i>
+          </div>
+          <p class="text-2xl font-bold mt-2 text-[#C97813]" id="stat-online">0</p>
+          <span class="text-[10px] text-gray-500 block mt-1">Motoristas online e a emitir sinal</span>
         </div>
 
-        <div id="edit-client-modal" class="modal-backdrop hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Editar Cliente</h3>
-                    <button class="modal-close-btn" onclick="closeEditClientModal()">×</button>
-                </div>
-                <form id="form-edit-cliente">
-                    <div class="modal-body">
-                        <input type="hidden" id="edit-client-id">
-                        
-                        <div class="form-group">
-                            <label for="edit-client-nome">Nome Completo</label>
-                            <input type="text" id="edit-client-nome" class="form-input" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="edit-client-telefone">Telefone</label>
-                            <input type="tel" id="edit-client-telefone" class="form-input" required>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-client-empresa">Empresa</label>
-                                <input type="text" id="edit-client-empresa" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-client-email">Email</label>
-                                <input type="email" id="edit-client-email" class="form-input">
-                            </div>
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="edit-client-nuit">NUIT</label>
-                                <input type="text" id="edit-client-nuit" class="form-input">
-                            </div>
-                            <div class="form-group">
-                                <label for="edit-client-endereco">Endereço</label>
-                                <input type="text" id="edit-client-endereco" class="form-input">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-actions">
-                        <button type="submit" class="btn btn-primary">Salvar Alterações</button>
-                        <button type="button" class="btn btn-secondary" onclick="closeEditClientModal()">Cancelar</button>
-                    </div>
-                </form>
-            </div>
+      </div>
+
+      <!-- Secção de Gráficos e Finanças -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- Gráfico de Serviços -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col">
+          <h3 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Adesão por Tipo de Serviço</h3>
+          <div class="flex-1 relative min-h-[220px]">
+            <canvas id="servicesChart"></canvas>
+          </div>
         </div>
 
-        <div id="statement-modal" class="modal-backdrop hidden">
-            <div class="modal-content modal-large">
-                <div class="modal-header">
-                    <h3 id="statement-client-name">Extrato do Cliente</h3>
-                    <button class="modal-close-btn" onclick="closeStatementModal()">×</button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" id="statement-client-id">
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="statement-start-date">De:</label>
-                            <input type="date" id="statement-start-date" class="form-input">
-                        </div>
-                        <div class="form-group">
-                            <label for="statement-end-date">Até:</label>
-                            <input type="date" id="statement-end-date" class="form-input">
-                        </div>
-                    </div>
-                    
-                    <div class="form-group inline-actions">
-                        <button type="button" class="btn btn-secondary btn-set-date" data-range="this_week">Esta Semana</button>
-                        <button type="button" class="btn btn-secondary btn-set-date" data-range="this_month">Este Mês</button>
-                    </div>
-                    
-                    <button type="button" class="btn btn-primary" id="btn-generate-statement">
-                        <i class="fas fa-search"></i> Gerar Extrato
-                    </button>
-                    
-                    <div id="statement-results" class="hidden statement-results">
-                        <hr>
-                        <div class="report-summary">
-                            <div class="summary-card">
-                                <span>Total Gasto (MZN)</span>
-                                <strong id="statement-total-value">...</strong>
-                            </div>
-                            <div class="summary-card">
-                                <span>Total de Pedidos</span>
-                                <strong id="statement-total-orders">...</strong>
-                            </div>
-                        </div>
-                        
-                        <div class="statement-toolbar">
-                            <h4 id="statement-date-range">Pedidos Concluídos</h4>
-                            <button type="button" class="btn btn-primary" id="btn-download-pdf">
-                                <i class="fas fa-file-pdf"></i> Baixar PDF
-                            </button>
-                        </div>
-                        
-                        <div class="table-wrapper">
-                            <table class="data-table table-pedidos">
-                                <thead>
-                                    <tr>
-                                        <th>Data Conclusão</th>
-                                        <th>ID Pedido</th>
-                                        <th>Natureza</th>
-                                        <th>Valor (MZN)</th>
-                                        <th>Pagamento</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="statement-table-body"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeStatementModal()">Fechar</button>
-                </div>
+        <!-- Gráfico Financeiro -->
+        <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm lg:col-span-2 flex flex-col">
+          <h3 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Receitas vs Custos (Últimos 6 Meses)</h3>
+          <div class="flex-1 relative min-h-[220px]">
+            <canvas id="costsChart"></canvas>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Resumo Financeiro do Mês -->
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h3 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Métricas Financeiras (Mês Atual)</h3>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+          <div class="p-3 bg-gray-50 rounded border">
+            <span class="text-[10px] text-gray-500 uppercase font-bold block">Receita Bruta</span>
+            <span class="text-base font-bold text-[#2F7A3C] block mt-1" id="fin-receita">0 MZN</span>
+          </div>
+
+          <div class="p-3 bg-gray-50 rounded border">
+            <span class="text-[10px] text-gray-500 uppercase font-bold block">Ganhos da Frota</span>
+            <span class="text-base font-bold text-[#C97813] block mt-1" id="fin-ganhos-motoristas">0 MZN</span>
+          </div>
+
+          <div class="p-3 bg-gray-50 rounded border">
+            <span class="text-[10px] text-gray-500 uppercase font-bold block">Lucro Bruto da Empresa</span>
+            <span class="text-base font-bold text-gray-800 block mt-1" id="fin-lucro">0 MZN</span>
+          </div>
+
+          <div class="p-3 bg-gray-50 rounded border">
+            <span class="text-[10px] text-gray-500 uppercase font-bold block">Motorista do Mês</span>
+            <span class="text-sm font-bold text-[#3DAA50] block mt-1 truncate" id="fin-top-driver">-</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 2: CRIAR NOVA ENTREGA -->
+    <section id="section-criar-entrega" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-base font-bold mb-4 pb-2 border-b">Formulário de Registo de Nova Entrega</h2>
+        
+        <form id="form-create-order" class="space-y-4 text-xs">
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Tipo de Serviço *</label>
+              <select name="service_type" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+                <option value="rapido">Delivery Rápido</option>
+                <option value="doc">Documentos (Doc.)</option>
+                <option value="farma">Farmácia</option>
+                <option value="carga">Cargas</option>
+                <option value="outros">Outros</option>
+              </select>
             </div>
+
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Preço (MZN) *</label>
+              <input type="number" name="price" required min="0" placeholder="Ex: 450" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Método de Pagamento *</label>
+              <select name="payment_method" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+                <option value="cash">Dinheiro</option>
+                <option value="mpesa">M-Pesa</option>
+                <option value="emola">E-Mola</option>
+                <option value="mkesh">M-Kesh</option>
+                <option value="bank_transfer">Transferência Bancária</option>
+              </select>
+            </div>
+
+          </div>
+
+          <div class="pt-2 border-t">
+            <label class="block font-semibold text-gray-700 mb-1">Vincular a Cliente Existente (Opcional)</label>
+            <select id="order-client-select" name="clientId" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+              <option value="">A carregar clientes...</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Nome do Cliente / Destinatário *</label>
+              <input type="text" id="order-client-name" name="client_name" required placeholder="Nome completo" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Telefone Principal *</label>
+              <input type="text" id="order-client-phone" name="client_phone1" required placeholder="+258 84/82..." class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Telefone Secundário</label>
+              <input type="text" name="client_phone2" placeholder="Opcional" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+
+          </div>
+
+          <div class="pt-2 border-t">
+            <label class="block font-semibold text-gray-700 mb-1">Endereço Completo de Entrega *</label>
+            <input type="text" id="order-client-address" name="address_text" required placeholder="Av/Rua, Bairro, Número - Maputo" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Latitude (Coordenadas de GPS) *</label>
+              <input type="text" name="lat" required placeholder="Ex: -25.9653" value="-25.9653" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Longitude (Coordenadas de GPS) *</label>
+              <input type="text" name="lng" required placeholder="Ex: 32.5890" value="32.5890" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            </div>
+          </div>
+
+          <div class="pt-2 border-t grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            
+            <div>
+              <label class="block font-semibold text-gray-700 mb-1">Imagem do Pacote (Opcional)</label>
+              <input type="file" name="image" accept="image/*" class="w-full p-1.5 border rounded">
+              <span class="text-[10px] text-gray-400 block mt-0.5">Formatos: JPG, PNG, WEBP. Máx: 5MB</span>
+            </div>
+
+            <div class="flex items-center gap-2 pt-4">
+              <input type="checkbox" id="autoAssign" name="autoAssign" value="true" class="w-4 h-4 text-[#2F7A3C]">
+              <label for="autoAssign" class="font-bold text-gray-800 cursor-pointer">
+                Atribuição Automática Baseada em Geolocalização
+                <span class="block text-[10px] font-normal text-gray-500">Encontra e atribui ao motorista livre mais próximo do ponto de entrega.</span>
+              </label>
+            </div>
+
+          </div>
+
+          <div class="pt-4 border-t flex justify-end">
+            <button type="submit" class="px-5 py-2.5 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow transition-colors">
+              Criar e Processar Entrega
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 3: GESTÃO DE MOTORISTAS -->
+    <section id="section-motoristas" class="admin-section hidden space-y-4">
+      
+      <!-- Registo de Motorista -->
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Registar Novo Motorista</h2>
+        
+        <form id="form-create-driver" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Nome Completo *</label>
+            <input type="text" name="nome" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Email *</label>
+            <input type="email" name="email" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Telefone *</label>
+            <input type="text" name="telefone" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Palavra-Passe *</label>
+            <input type="password" name="password" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Matrícula da Viatura</label>
+            <input type="text" name="vehicle_plate" placeholder="Ex: MMQ-12-34" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Taxa de Comissão (%)</label>
+            <input type="number" name="commissionRate" min="0" max="100" value="20" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div class="md:col-span-3 flex justify-end pt-1">
+            <button type="submit" class="px-4 py-2 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow">
+              Adicionar à Frota
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tabela -->
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Frota de Motoristas</h2>
+          <button onclick="AdminApp.loadDrivers()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="drivers-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 4: GESTÃO DE CLIENTES -->
+    <section id="section-clientes" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Registar Conta de Cliente</h2>
+        
+        <form id="form-create-client" class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Nome do Responsável *</label>
+            <input type="text" name="nome" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Telefone Único *</label>
+            <input type="text" name="telefone" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Email</label>
+            <input type="email" name="email" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Nome da Empresa</label>
+            <input type="text" name="empresa" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">NUIT</label>
+            <input type="text" name="nuit" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Endereço Sede</label>
+            <input type="text" name="endereco" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div class="md:col-span-3 flex justify-end pt-1">
+            <button type="submit" class="px-4 py-2 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow">
+              Registar Cliente
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Diretório de Clientes</h2>
+          <button onclick="AdminApp.loadClients()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="clients-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 5: GESTÃO DE CUSTOS -->
+    <section id="section-custos" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Registar Custo Operacional da Empresa</h2>
+        
+        <form id="form-create-cost" class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Categoria *</label>
+            <select name="category" required class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+              <option value="salarios">Salários</option>
+              <option value="renda">Renda</option>
+              <option value="manutencao">Manutenção</option>
+              <option value="comunicacao">Comunicação</option>
+              <option value="marketing">Marketing</option>
+              <option value="combustivel">Combustível</option>
+              <option value="diversos">Diversos</option>
+            </select>
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Valor (MZN) *</label>
+            <input type="number" name="amount" required min="1" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Data</label>
+            <input type="date" name="date" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Descrição *</label>
+            <input type="text" name="description" required placeholder="Detalhes do custo" class="w-full p-2 border rounded focus:outline-none focus:border-[#2F7A3C]">
+          </div>
+          <div class="md:col-span-4 flex justify-end pt-1">
+            <button type="submit" class="px-4 py-2 bg-[#C97813] hover:bg-[#a86410] text-white font-bold rounded shadow">
+              Lançar Custo
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Histórico de Custos</h2>
+          <button onclick="AdminApp.loadCosts()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="costs-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 6: GESTÃO DE CARGOS / GESTORES -->
+    <section id="section-cargos" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Criar Perfil de Gestor Operacional</h2>
+        
+        <form id="form-create-manager" class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Nome *</label>
+            <input type="text" name="nome" required class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Email *</label>
+            <input type="email" name="email" required class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Telefone *</label>
+            <input type="text" name="telefone" required class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Palavra-Passe *</label>
+            <input type="password" name="password" required class="w-full p-2 border rounded">
+          </div>
+          <div class="md:col-span-4 flex justify-end">
+            <button type="submit" class="px-4 py-2 bg-[#1B2A4A] text-white font-bold rounded shadow">
+              Criar Gestor
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Gestores Registados</h2>
+          <button onclick="AdminApp.loadManagers()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="managers-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 7: DESPESAS LANÇADAS -->
+    <section id="section-despesas" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+        <h2 class="text-xs font-bold uppercase text-gray-400 tracking-wider mb-3">Lançar Despesa Avulsa (Gestão)</h2>
+        
+        <form id="form-create-expense" class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Categoria *</label>
+            <input type="text" name="category" required placeholder="Ex: Alimentação" class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Valor (MZN) *</label>
+            <input type="number" name="amount" required min="1" class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Data</label>
+            <input type="date" name="date" class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-0.5">Descrição *</label>
+            <input type="text" name="description" required placeholder="Motivo da despesa" class="w-full p-2 border rounded">
+          </div>
+          <div class="md:col-span-4 flex justify-end">
+            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded shadow">
+              Registar Despesa
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase text-gray-600">Listagem de Despesas</h2>
+          <button onclick="AdminApp.loadExpenses()" class="text-xs text-[#2F7A3C] hover:underline font-bold">Atualizar</button>
+        </div>
+        <div id="expenses-table-container" class="overflow-x-auto">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 8: ENTREGAS ATIVAS -->
+    <section id="section-entregas" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold">Monitorização de Entregas Ativas</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Encomendas que ainda não foram finalizadas nem canceladas.</p>
+          </div>
+          <button onclick="AdminApp.loadActiveOrders()" class="px-3 py-1.5 bg-[#2F7A3C] text-white rounded text-xs font-bold shadow">
+            <i class="fas fa-sync-alt mr-1"></i> Atualizar
+          </button>
+        </div>
+
+        <div id="active-orders-table-container" class="overflow-x-auto min-h-[300px]">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 9: HISTÓRICO -->
+    <section id="section-historico" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-gray-50 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold">Histórico Geral de Encomendas</h2>
+            <p class="text-xs text-gray-500 mt-0.5">Listagem das últimas 200 entregas concluídas ou canceladas.</p>
+          </div>
+          <button onclick="AdminApp.loadHistoryOrders()" class="px-3 py-1.5 bg-[#2F7A3C] text-white rounded text-xs font-bold shadow">
+            <i class="fas fa-sync-alt mr-1"></i> Atualizar
+          </button>
+        </div>
+
+        <div id="history-orders-table-container" class="overflow-x-auto min-h-[300px]">
+          <!-- Injetado via JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 10: MAPA EM TEMPO REAL -->
+    <section id="section-mapa" class="admin-section hidden space-y-4">
+      
+      <div class="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex flex-col h-[calc(100vh-140px)] min-h-[500px]">
+        <div class="flex items-center justify-between mb-3 shrink-0">
+          <div>
+            <h2 class="text-sm font-bold">Rastreamento da Frota (Maputo)</h2>
+            <p class="text-xs text-gray-500">As posições são atualizadas em tempo real via WebSockets.</p>
+          </div>
+
+          <div class="flex items-center gap-3 text-xs">
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-green-600 inline-block"></span> Livre</span>
+            <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-orange-600 inline-block"></span> Ocupado</span>
+          </div>
+        </div>
+
+        <!-- Container do Mapa Leaflet -->
+        <div id="admin-map" class="flex-1 rounded border z-10"></div>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 11: CONFIGURAÇÕES -->
+    <section id="section-configuracoes" class="admin-section hidden space-y-6">
+      
+      <!-- Alterar Senha -->
+      <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm max-w-md">
+        <h2 class="text-sm font-bold uppercase text-gray-400 tracking-wider mb-4">Alterar Palavra-Passe Administrativa</h2>
+        
+        <form id="form-change-password" class="space-y-3 text-xs">
+          <div>
+            <label class="block font-medium text-gray-600 mb-1">Palavra-Passe Atual</label>
+            <input type="password" name="senhaAntiga" required class="w-full p-2 border rounded">
+          </div>
+          <div>
+            <label class="block font-medium text-gray-600 mb-1">Nova Palavra-Passe</label>
+            <input type="password" name="senhaNova" required class="w-full p-2 border rounded">
+          </div>
+          <button type="submit" class="w-full py-2.5 bg-[#1B2A4A] text-white font-bold rounded shadow">
+            Atualizar Palavra-Passe
+          </button>
+        </form>
+      </div>
+
+      <!-- Exportação Financeira -->
+      <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm max-w-md">
+        <h2 class="text-sm font-bold uppercase text-gray-400 tracking-wider mb-2">Exportação Financeira Consolidada</h2>
+        <p class="text-xs text-gray-500 mb-4">Gere um relatório completo em Excel com todas as receitas, ganhos de motoristas, custos e despesas do período.</p>
+        
+        <form id="form-export-financial" class="space-y-3 text-xs">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block font-medium text-gray-600 mb-1">Data Início</label>
+              <input type="date" name="startDate" required class="w-full p-2 border rounded">
+            </div>
+            <div>
+              <label class="block font-medium text-gray-600 mb-1">Data Fim</label>
+              <input type="date" name="endDate" required class="w-full p-2 border rounded">
+            </div>
+          </div>
+          <button type="submit" class="w-full py-2.5 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow flex items-center justify-center gap-2">
+            <i class="fas fa-file-excel"></i> Transferir Relatório (XLSX)
+          </button>
+        </form>
+      </div>
+
+    </section>
+
+    <!-- SECÇÃO 12: ZONA DE PERIGO -->
+    <section id="section-perigo" class="admin-section hidden space-y-4">
+      
+      <div class="bg-red-50 border border-red-200 rounded-lg p-6 max-w-lg">
+        <div class="flex items-center gap-3 text-red-800 mb-3">
+          <i class="fas fa-exclamation-triangle text-2xl"></i>
+          <h2 class="text-base font-bold">Zona de Risco Operacional</h2>
         </div>
         
-        <div id="confirmation-modal" class="modal-backdrop hidden">
-            <div class="modal-content modal-alert">
-                <div class="modal-header error">
-                    <h3 id="confirmation-title">Confirmar Ação</h3>
-                    <button class="modal-close-btn" id="btn-close-confirmation-modal">×</button>
-                </div>
-                <div class="modal-body">
-                    <p id="confirmation-message" class="confirmation-message">Tem a certeza? Esta ação não pode ser revertida.</p>
-                    <div class="form-group">
-                        <label for="confirmation-input" id="confirmation-input-label">Para confirmar, digite a palavra:</label>
-                        <input type="text" id="confirmation-input" class="form-input confirmation-input">
-                    </div>
-                </div>
-                <div class="modal-actions">
-                    <button type="button" class="btn btn-danger" id="btn-confirm-action" disabled>Confirmar e Apagar</button>
-                    <button type="button" class="btn btn-secondary" id="btn-cancel-confirmation-modal">Cancelar</button>
-                </div>
-            </div>
-        </div>
-    </main>
-    
-    <!-- Scripts -->
-    <script src="templatemo-glass-admin-script.js"></script>
-    <script src="js/common/api.js"></script>
-    <script src="js/common/auth.js"></script>
-    <script src="js/common/ui.js"></script>
-    <script src="js/admin/adminCharts.js"></script>
-    <script src="js/admin/adminMap.js"></script>
-    <script src="js/admin/adminApi.js"></script>
-    <script src="js/admin/adminModals.js"></script>
-    <script src="js/admin/admin.js"></script>
-    
+        <p class="text-xs text-red-700 leading-relaxed mb-6">
+          As ações abaixo são irreversíveis e afetam diretamente a integridade da base de dados de produção. Certifique-se de que possui backups recentes antes de prosseguir.
+        </p>
 
-    
+        <div class="pt-4 border-t border-red-200 flex items-center justify-between">
+          <div>
+            <p class="text-xs font-bold text-red-900">Limpeza de Histórico Antigo</p>
+            <p class="text-[10px] text-red-600">Remove encomendas concluídas ou canceladas há mais de 30 dias.</p>
+          </div>
+
+          <button onclick="AdminApp.handleDeleteHistory()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded text-xs shadow transition-colors">
+            Limpar Histórico
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================================================== -->
+  <!-- MODAIS ADMINISTRATIVOS -->
+  <!-- ================================================== -->
+
+  <!-- Modal: Atribuir Motorista -->
+  <div id="modal-assign" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full overflow-hidden animate-scale-up">
+      <div class="bg-[#1B2A4A] text-white p-4 flex items-center justify-between">
+        <h3 class="font-bold text-sm">Atribuir Motorista à Entrega</h3>
+        <button onclick="window.UI.closeModal('modal-assign')" class="text-white/80 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <form id="form-assign-order" class="p-4 space-y-4 text-xs">
+        <input type="hidden" id="assign-order-id">
+        
+        <div>
+          <label class="block font-semibold text-gray-700 mb-1">Selecione o Motorista Disponível</label>
+          <select id="assign-driver-select" required class="w-full p-2.5 border rounded focus:outline-none focus:border-[#2F7A3C]">
+            <!-- Injetado via JS -->
+          </select>
+          <span class="text-[10px] text-gray-400 block mt-1">Apenas motoristas com o estado "Online (Livre)" são listados.</span>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="window.UI.closeModal('modal-assign')" class="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded">
+            Cancelar
+          </button>
+          <button type="submit" class="px-4 py-2 bg-[#2F7A3C] hover:bg-[#245e2e] text-white font-bold rounded shadow">
+            Confirmar Atribuição
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Detalhes da Encomenda -->
+  <div id="modal-details" class="hidden fixed inset-0 bg-black/60 z-50 items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full overflow-hidden animate-scale-up flex flex-col max-h-[90vh]">
+      <div class="bg-[#2F7A3C] text-white p-4 flex items-center justify-between shrink-0">
+        <h3 class="font-bold text-sm">Ficha Técnica da Encomenda</h3>
+        <button onclick="window.UI.closeModal('modal-details')" class="text-white/80 hover:text-white">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <div id="details-modal-content" class="p-6 overflow-y-auto flex-1 space-y-4">
+        <!-- Injetado via JS -->
+      </div>
+
+      <div class="p-4 border-t bg-gray-50 flex justify-end shrink-0">
+        <button onclick="window.UI.closeModal('modal-details')" class="px-4 py-2 bg-gray-700 hover:bg-gray-800 text-white font-bold rounded text-xs">
+          Fechar Ficha
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================================================== -->
+  <!-- SCRIPTS CDNs -->
+  <!-- ================================================== -->
+  <script src="https://cdn.jsdelivr.net/npm/socket.io-client@4.7.5/dist/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- ================================================== -->
+  <!-- SCRIPTS INTERNOS -->
+  <!-- ================================================== -->
+  <script src="js/common/api.js"></script>
+  <script src="js/common/ui.js"></script>
+  <script src="js/common/auth.js"></script>
+  <script src="js/admin/app.js"></script>
+
+  <script>
+    // Inicializar o Dashboard
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.AdminApp) {
+        window.AdminApp.init();
+      }
+    });
+  </script>
 </body>
 </html>
