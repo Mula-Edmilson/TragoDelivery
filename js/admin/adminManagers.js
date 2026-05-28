@@ -1,118 +1,219 @@
-// ==================================================
-// MÓDULO DE GESTORES DO ADMINISTRADOR (adminManagers.js)
-// ==================================================
+/*
+ * js/admin/adminManagers.js
+ * Gestão de Gestores (Managers)
+ *
+ * Depende de:
+ * - API_URL (global)
+ * - getAuthHeaders() (retorna objecto header com Authorization)
+ * - showCustomAlert(), handleLogout()
+ */
 
-const AdminManagers = {
-  loadManagers: async () => {
-    window.UI.showLoader('managers-table-container');
-    try {
-      const managers = await window.AdminApi.fetchManagers();
-      const container = document.getElementById('managers-table-container');
+async function loadManagers() {
+  const tableBody = document.getElementById('managers-table-body');
+  if (!tableBody) return;
 
-      if (managers.length === 0) {
-        window.UI.showEmptyState('managers-table-container', 'Nenhum gestor registado.');
-        return;
-      }
+  tableBody.innerHTML = '<tr><td colspan="4">A carregar gestores...</td></tr>';
 
-      let html = `
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-gray-100 text-[#50494B] uppercase text-[10px] tracking-wider border-b">
-              <th class="p-3">Nome</th>
-              <th class="p-3">Email</th>
-              <th class="p-3">Telefone</th>
-              <th class="p-3 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody class="text-xs divide-y">
+  try {
+    const response = await fetch(`${API_URL}/api/managers`, {
+      headers: getAuthHeaders('admin')
+    });
+
+    if (response.status === 401) {
+    handle401Safely('admin');
+    return;
+}
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || 'Erro ao carregar gestores');
+
+    const managers = data.managers || [];
+
+    tableBody.innerHTML = '';
+
+    if (managers.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="4">Nenhum gestor registado.</td></tr>';
+      return;
+    }
+
+    managers.forEach((manager) => {
+      tableBody.innerHTML += `
+        <tr>
+          <td>${manager.nome}</td>
+          <td>${manager.telefone || 'N/A'}</td>
+          <td>${manager.email}</td>
+          <td>
+            <button class="btn-action-small btn-primary" onclick="handleEditManager('${manager._id}')">
+              <i class="fas fa-edit"></i>
+            </button>
+            <button class="btn-action-small btn-danger" onclick="deleteManager('${manager._id}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
       `;
-
-      managers.forEach(m => {
-        // Escapar as strings para passar com segurança na chamada inline
-        const safeNome = m.nome.replace(/'/g, "\\'");
-        const safeEmail = m.email.replace(/'/g, "\\'");
-        const safePhone = m.telefone.replace(/'/g, "\\'");
-
-        html += `
-          <tr class="hover:bg-gray-50">
-            <td class="p-3 font-bold text-[#2F7A3C]">${m.nome}</td>
-            <td class="p-3">${m.email}</td>
-            <td class="p-3">${m.telefone}</td>
-            <td class="p-3 text-right">
-              <div class="flex items-center justify-end gap-1">
-                <button onclick="AdminModals.openEditManagerModal('${m._id}', '${safeNome}', '${safeEmail}', '${safePhone}')" class="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Editar Dados">
-                  <i class="fas fa-edit"></i>
-                </button>
-                <button onclick="AdminManagers.handleDeleteManager('${m._id}')" class="p-1 text-red-600 hover:bg-red-50 rounded" title="Remover Gestor">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        `;
-      });
-
-      html += '</tbody></table>';
-      container.innerHTML = html;
-    } catch (err) {
-      window.UI.showEmptyState('managers-table-container', 'Erro ao carregar gestores.');
-    }
-  },
-
-  handleCreateManager: async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const managerData = {
-      nome: form.nome.value.trim(),
-      email: form.email.value.trim(),
-      telefone: form.telefone.value.trim(),
-      password: form.password.value
-    };
-
-    try {
-      await window.AdminApi.createManager(managerData);
-      window.UI.showAlert('Gestor criado com sucesso!');
-      form.reset();
-      AdminManagers.loadManagers();
-    } catch (err) {
-      window.UI.showAlert(err.message, 'error');
-    }
-  },
-
-  handleUpdateManager: async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const id = form.id.value;
-    const managerData = {
-      nome: form.nome.value.trim(),
-      email: form.email.value.trim(),
-      telefone: form.telefone.value.trim()
-    };
-
-    if (form.password.value) {
-      managerData.password = form.password.value;
-    }
-
-    try {
-      await window.AdminApi.updateManager(id, managerData);
-      window.UI.showAlert('Dados do gestor atualizados com sucesso!');
-      window.UI.closeModal('modal-edit-manager');
-      AdminManagers.loadManagers();
-    } catch (err) {
-      window.UI.showAlert(err.message, 'error');
-    }
-  },
-
-  handleDeleteManager: async (id) => {
-    if (!confirm('Tem a certeza que deseja remover este gestor?')) return;
-    try {
-      await window.AdminApi.deleteManager(id);
-      window.UI.showAlert('Gestor removido.');
-      AdminManagers.loadManagers();
-    } catch (err) {
-      window.UI.showAlert(err.message, 'error');
-    }
+    });
+  } catch (error) {
+    console.error('Erro ao carregar gestores:', error);
+    tableBody.innerHTML = '<tr><td colspan="4">Erro ao carregar gestores.</td></tr>';
   }
-};
+}
 
-window.AdminManagers = AdminManagers;
+async function handleAddManager(event) {
+  event.preventDefault();
+
+  const nome = document.getElementById('manager-name').value.trim();
+  const telefone = document.getElementById('manager-phone').value.trim();
+  const email = document.getElementById('manager-email').value.trim();
+  const password = document.getElementById('manager-password').value;
+
+  console.log('DEBUG MANAGER BODY ->', { nome, telefone, email, passwordPresent: !!password });
+
+  try {
+    const response = await fetch(`${API_URL}/api/managers`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders('admin'),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ nome, telefone, email, password })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message || 'Erro ao criar gestor');
+
+    showCustomAlert('Sucesso', 'Gestor registado com sucesso.', 'success');
+    document.getElementById('form-add-manager').reset();
+    showAddManagerForm(false);
+    loadManagers();
+  } catch (error) {
+    console.error('Erro ao adicionar gestor:', error);
+    showCustomAlert('Erro', error.message || 'Erro ao adicionar gestor.', 'error');
+  }
+}
+
+async function deleteManager(managerId) {
+  if (!confirm('Tem certeza que deseja apagar este gestor?')) return;
+
+  try {
+    const response = await fetch(`${API_URL}/api/managers/${managerId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders('admin')
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message || 'Erro ao apagar gestor');
+
+    showCustomAlert('Sucesso', 'Gestor apagado com sucesso.', 'success');
+    loadManagers();
+  } catch (error) {
+    console.error('Erro ao apagar gestor:', error);
+    showCustomAlert('Erro', error.message || 'Erro ao apagar gestor.', 'error');
+  }
+}
+
+function showAddManagerForm(show) {
+  const form = document.getElementById('form-add-manager');
+  const btn = document.getElementById('btn-show-manager-form');
+
+  if (!form || !btn) return;
+
+  if (show) {
+    form.classList.remove('hidden');
+    btn.classList.add('hidden');
+  } else {
+    form.classList.add('hidden');
+    btn.classList.remove('hidden');
+  }
+}
+
+/* ---------------------------
+   Edição de gestor (modal)
+   --------------------------- */
+
+function openEditManagerModal() {
+  document.getElementById('edit-manager-modal').classList.remove('hidden');
+}
+function closeEditManagerModal() {
+  document.getElementById('edit-manager-modal').classList.add('hidden');
+  const f = document.getElementById('form-edit-manager');
+  if (f) f.reset();
+}
+
+async function handleEditManager(managerId) {
+  try {
+    const res = await fetch(`${API_URL}/api/managers/${managerId}`, {
+      headers: getAuthHeaders('admin')
+    });
+    if (res.status === 401) return handleLogout('admin');
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Erro ao carregar gestor.');
+
+    const manager = data.manager;
+
+    document.getElementById('edit-manager-id').value = manager._id;
+    document.getElementById('edit-manager-name').value = manager.nome || '';
+    document.getElementById('edit-manager-phone').value = manager.telefone || '';
+    document.getElementById('edit-manager-email').value = manager.email || '';
+    document.getElementById('edit-manager-password').value = '';
+
+    openEditManagerModal();
+  } catch (err) {
+    console.error('Erro ao abrir edição de gestor:', err);
+    showCustomAlert('Erro', err.message || 'Erro ao carregar gestor.', 'error');
+  }
+}
+
+async function handleUpdateManager(event) {
+  event.preventDefault();
+
+  const id = document.getElementById('edit-manager-id').value;
+  const nome = document.getElementById('edit-manager-name').value.trim();
+  const telefone = document.getElementById('edit-manager-phone').value.trim();
+  const email = document.getElementById('edit-manager-email').value.trim();
+  const password = document.getElementById('edit-manager-password').value;
+
+  console.log('DEBUG UPDATE MANAGER ->', { id, nome, telefone, email, passwordPresent: !!password });
+
+  try {
+    const payload = { nome, telefone, email };
+    if (password && password.length >= 6) payload.password = password;
+    
+
+    const res = await fetch(`${API_URL}/api/managers/${id}`, {
+      method: 'PUT',
+      headers: {
+        ...getAuthHeaders('admin'),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Erro ao actualizar gestor.');
+
+    showCustomAlert('Sucesso', 'Gestor actualizado com sucesso.', 'success');
+    closeEditManagerModal();
+    loadManagers();
+  } catch (err) {
+    console.error('Erro ao actualizar gestor:', err);
+    showCustomAlert('Erro', err.message || 'Erro ao actualizar gestor.', 'error');
+  }
+}
+
+/* Inicialização - liga listeners */
+document.addEventListener('DOMContentLoaded', () => {
+  const addForm = document.getElementById('form-add-manager');
+  if (addForm) addForm.addEventListener('submit', handleAddManager);
+
+  const editForm = document.getElementById('form-edit-manager');
+  if (editForm) editForm.addEventListener('submit', handleUpdateManager);
+
+  const btnShow = document.getElementById('btn-show-manager-form');
+  if (btnShow) btnShow.addEventListener('click', () => showAddManagerForm(true));
+
+  loadManagers();
+});

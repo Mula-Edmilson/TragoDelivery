@@ -1,115 +1,198 @@
-// ==================================================
-// MÓDULO DE DESPESAS DO ADMINISTRADOR (adminExpenses.js)
-// ==================================================
+/*
+ * Ficheiro: js/admin/adminExpenses.js
+ * Gestão de Custos (Expenses)
+ */
 
-const AdminExpenses = {
-  loadExpenses: async () => {
-    window.UI.showLoader('expenses-table-container');
-    try {
-      const expenses = await window.AdminApi.fetchExpenses();
-      const container = document.getElementById('expenses-table-container');
+async function loadExpenses() {
+  const tableBody = document.getElementById('expenses-table-body');
+  tableBody.innerHTML = '<tr><td colspan="6">A carregar custos...</td></tr>';
 
-      if (expenses.length === 0) {
-        window.UI.showEmptyState('expenses-table-container', 'Nenhuma despesa lançada.');
-        return;
-      }
+  try {
+    const response = await fetch(`${API_URL}/api/expenses`, {
+      headers: getAuthHeaders('admin')
+    });
 
-      let html = `
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-gray-100 text-[#50494B] uppercase text-[10px] tracking-wider border-b">
-              <th class="p-3">Data</th>
-              <th class="p-3">Categoria</th>
-              <th class="p-3">Descrição</th>
-              <th class="p-3">Valor</th>
-              <th class="p-3 text-right">Ações</th>
-            </tr>
-          </thead>
-          <tbody class="text-xs divide-y">
+    if (response.status === 401) {
+    handle401Safely('admin');
+    return;
+}
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message);
+
+    const expenses = data.expenses || [];
+
+    tableBody.innerHTML = '';
+
+    if (expenses.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="6">Nenhum custo registado.</td></tr>';
+      return;
+    }
+
+    expenses.forEach((expense) => {
+      const employeeName = expense.employee ? expense.employee.nome : 'N/A';
+      const categoryName = EXPENSE_CATEGORIES[expense.category] || expense.category;
+
+      tableBody.innerHTML += `
+        <tr>
+          <td>${new Date(expense.date).toLocaleDateString('pt-MZ')}</td>
+          <td>${categoryName}</td>
+          <td>${expense.description}</td>
+          <td>${employeeName}</td>
+          <td>${expense.amount.toFixed(2)} MZN</td>
+          <td>
+            <button class="btn-action-small btn-danger" onclick="deleteExpense('${expense._id}')">
+              <i class="fas fa-trash"></i>
+            </button>
+          </td>
+        </tr>
       `;
-
-      expenses.forEach(e => {
-        const safeCat = e.category.replace(/'/g, "\\'");
-        const safeDesc = e.description.replace(/'/g, "\\'");
-
-        html += `
-          <tr class="hover:bg-gray-50">
-            <td class="p-3">${window.UI.formatDate(e.date, false)}</td>
-            <td class="p-3 uppercase text-[10px] font-semibold">${e.category}</td>
-            <td class="p-3">${e.description}</td>
-            <td class="p-3 font-bold text-red-600">${window.UI.formatCurrency(e.amount)}</td>
-            <td class="p-3 text-right">
-              <div class="flex items-center justify-end gap-1">
-                <button onclick="AdminModals.openEditExpenseModal('${e._id}', '${safeCat}', ${e.amount}, '${safeDesc}', '${e.date}')" class="p-1 text-blue-600 hover:bg-blue-50 rounded" title="Editar Valor">
-                  <i class="fas fa-edit"></i>
-                </button>
-                <button onclick="AdminExpenses.handleDeleteExpense('${e._id}')" class="p-1 text-red-600 hover:bg-red-50 rounded" title="Remover Registo">
-                  <i class="fas fa-trash"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
-        `;
-      });
-
-      html += '</tbody></table>';
-      container.innerHTML = html;
-    } catch (err) {
-      window.UI.showEmptyState('expenses-table-container', 'Erro ao carregar despesas.');
-    }
-  },
-
-  handleCreateExpense: async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const expenseData = {
-      category: form.category.value.trim(),
-      description: form.description.value.trim(),
-      amount: Number(form.amount.value),
-      date: form.date.value || new Date()
-    };
-
-    try {
-      await window.AdminApi.createExpense(expenseData);
-      window.UI.showAlert('Despesa lançada com sucesso!');
-      form.reset();
-      AdminExpenses.loadExpenses();
-    } catch (err) {
-      window.UI.showAlert(err.message, 'error');
-    }
-  },
-
-  handleUpdateExpense: async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const id = form.id.value;
-    const expenseData = {
-      category: form.category.value.trim(),
-      description: form.description.value.trim(),
-      amount: Number(form.amount.value),
-      date: form.date.value || new Date()
-    };
-
-    try {
-      await window.AdminApi.updateExpense(id, expenseData);
-      window.UI.showAlert('Despesa atualizada com sucesso!');
-      window.UI.closeModal('modal-edit-expense');
-      AdminExpenses.loadExpenses();
-    } catch (err) {
-      window.UI.showAlert(err.message, 'error');
-    }
-  },
-
-  handleDeleteExpense: async (id) => {
-    if (!confirm('Tem a certeza que deseja remover esta despesa?')) return;
-    try {
-      await window.AdminApi.deleteExpense(id);
-      window.UI.showAlert('Despesa removida.');
-      AdminExpenses.loadExpenses();
-    } catch (err) {
-      window.UI.showAlert(err.message, 'error');
-    }
+    });
+  } catch (error) {
+    console.error('Erro ao carregar custos:', error);
+    tableBody.innerHTML = '<tr><td colspan="6">Erro ao carregar custos.</td></tr>';
   }
-};
+}
 
-window.AdminExpenses = AdminExpenses;
+async function handleAddExpense(event) {
+  event.preventDefault();
+
+  const category = document.getElementById('expense-category').value;
+  const description = document.getElementById('expense-description').value;
+  const amount = parseFloat(document.getElementById('expense-amount').value);
+  const date = document.getElementById('expense-date').value;
+  const employee = document.getElementById('expense-employee').value || null;
+
+  // DEBUG para vermos o que está a ser enviado
+  console.log('DEBUG EXPENSE BODY ->', { category, description, amount, date, employee });
+
+  try {
+    const response = await fetch(`${API_URL}/api/expenses`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders('admin'),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ category, description, amount, date, employee })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message);
+
+    showCustomAlert('Sucesso', 'Custo registado com sucesso.', 'success');
+    document.getElementById('form-add-expense').reset();
+    showAddExpenseForm(false);
+    loadExpenses();
+  } catch (error) {
+    console.error('Erro ao adicionar custo:', error);
+    showCustomAlert('Erro', error.message || 'Erro ao adicionar custo.', 'error');
+  }
+}
+
+async function deleteExpense(expenseId) {
+  if (!confirm('Tem certeza que deseja apagar este custo?')) return;
+
+  try {
+    const response = await fetch(`${API_URL}/api/expenses/${expenseId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders('admin')
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message);
+
+    showCustomAlert('Sucesso', 'Custo apagado com sucesso.', 'success');
+    loadExpenses();
+  } catch (error) {
+    console.error('Erro ao apagar custo:', error);
+    showCustomAlert('Erro', error.message || 'Erro ao apagar custo.', 'error');
+  }
+}
+
+function showAddExpenseForm(show) {
+  const form = document.getElementById('form-add-expense');
+  const btn = document.getElementById('btn-show-expense-form');
+
+  if (show) {
+    form.classList.remove('hidden');
+    btn.classList.add('hidden');
+  } else {
+    form.classList.add('hidden');
+    btn.classList.remove('hidden');
+  }
+}
+
+async function loadEmployeesForExpense() {
+  const select = document.getElementById('expense-employee');
+  select.innerHTML = '<option value="">-- Nenhum (geral) --</option>';
+
+  try {
+    const [driversRes, managersRes] = await Promise.all([
+      fetch(`${API_URL}/api/drivers`, { headers: getAuthHeaders('admin') }),
+      fetch(`${API_URL}/api/managers`, { headers: getAuthHeaders('admin') })
+    ]);
+
+    const driversData = await driversRes.json();
+    const managersData = await managersRes.json();
+
+    const drivers = driversData.drivers || [];
+    const managers = managersData.managers || [];
+
+    drivers.forEach((driver) => {
+      select.innerHTML += `<option value="${driver._id}">${driver.nome} (Motorista)</option>`;
+    });
+
+    managers.forEach((manager) => {
+      select.innerHTML += `<option value="${manager._id}">${manager.nome} (Gestor)</option>`;
+    });
+  } catch (error) {
+    console.error('Erro ao carregar funcionários:', error);
+  }
+}
+
+async function exportFinancialReport() {
+  const startDate = document.getElementById('export-start-date').value;
+  const endDate = document.getElementById('export-end-date').value;
+
+  if (!startDate || !endDate) {
+    showCustomAlert('Atenção', 'Por favor, selecione o período.', 'warning');
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      `${API_URL}/api/admin/export-financial?startDate=${startDate}&endDate=${endDate}`,
+      {
+        headers: getAuthHeaders('admin')
+      }
+    );
+
+    if (!response.ok) throw new Error('Erro ao gerar relatório.');
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Relatorio_Financeiro_${startDate}_${endDate}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    showCustomAlert('Sucesso', 'Relatório exportado com sucesso.', 'success');
+  } catch (error) {
+    console.error('Erro ao exportar relatório:', error);
+    showCustomAlert('Erro', 'Erro ao exportar relatório.', 'error');
+  }
+}
+
+const EXPENSE_CATEGORIES = {
+  salarios: 'Salários',
+  renda: 'Renda',
+  diversos: 'Diversos',
+  manutencao: 'Manutenção',
+  comunicacao: 'Comunicação',
+  marketing: 'Marketing',
+  combustivel: 'Combustível'
+};

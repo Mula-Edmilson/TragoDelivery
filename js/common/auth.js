@@ -1,118 +1,204 @@
-// ==================================================
-// MÓDULO DE AUTENTICAÇÃO DO FRONTEND
-// ==================================================
+/*
+ * Ficheiro: js/common/auth.js
+ *
+ * Versão CORRIGIDA E BLINDADA
+ * - Protecção contra múltiplos logins
+ * - Tratamento de erro 429 (rate limit)
+ * - Evita loops e estados inconsistentes
+ * - CORREÇÃO: Apenas UMA função getAuthHeaders, sempre com role explícito
+ */
 
-const getAuthToken = (role) => {
-  return role === 'admin' ? localStorage.getItem('adminToken') : localStorage.getItem('driverToken');
-};
+let loginInProgress = false;
 
-const getAuthHeaders = (role, isMultipart = false) => {
-  const token = getAuthToken(role);
-  const headers = {
-    'Authorization': `Bearer ${token}`
-  };
-  if (!isMultipart) {
-    headers['Content-Type'] = 'application/json';
-  }
-  return headers;
-};
+/**
+ * Verifica se um utilizador (admin ou motorista) está autenticado.
+ */
+function checkAuth(role) {
+    console.log('checkAuth iniciado para role:', role);
 
-const checkAuth = (role) => {
-  const token = getAuthToken(role);
-  if (!token) {
-    console.warn(`[Auth] Token ausente para a role ${role}. Redirecionando para o login...`);
-    const loginPage = role === 'admin' ? 'login.html' : 'login-motorista.html';
-    window.location.href = loginPage;
-    return false;
-  }
-  return true;
-};
-
-const handleLogin = async (e, role) => {
-  e.preventDefault();
-  
-  const form = e.target;
-  const email = form.email.value.trim();
-  const password = form.password.value;
-  const submitBtn = form.querySelector('button[type="submit"]');
-
-  if (!email || !password) {
-    if (window.UI) window.UI.showAlert('Preencha o email e a senha.', 'error');
-    return;
-  }
-
-  const originalText = submitBtn.innerHTML;
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Autenticando...';
-
-  try {
-    const res = await fetch(`${window.API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, role })
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.message || 'Erro ao efetuar login.');
-    }
+    let token = null;
+    let loginPage = 'login.html';
 
     if (role === 'admin') {
-      localStorage.setItem('adminToken', data.token);
-      localStorage.setItem('adminName', data.user.nome);
-      window.location.href = 'index.html';
+        token = localStorage.getItem('adminToken');
+        loginPage = 'login.html';
+    } else if (role === 'driver') {
+        token = localStorage.getItem('driverToken');
+        loginPage = 'login-motorista.html';
     } else {
-      localStorage.setItem('driverToken', data.token);
-      localStorage.setItem('driverName', data.user.nome);
-      window.location.href = 'painel-de-entrega.html';
+        console.error('checkAuth: role inválido:', role);
+        return false;
     }
-  } catch (error) {
-    if (window.UI) {
-      window.UI.showAlert(error.message, 'error');
-    } else {
-      alert(error.message);
-    }
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = originalText;
-  }
-};
 
-const handleLogout = async (role) => {
-  try {
-    await fetch(`${window.API_URL}/auth/logout`, {
-      method: 'POST',
-      headers: getAuthHeaders(role)
-    });
-  } catch (err) {
-    console.warn('Erro ao chamar logout na API:', err);
-  } finally {
+    console.log('Token encontrado:', token);
+
+    const tokenInvalid =
+        !token ||
+        token === 'undefined' ||
+        token === 'null' ||
+        token.trim() === '';
+
+    if (tokenInvalid) {
+        console.warn('Token inválido → redirecionando');
+
+        setTimeout(() => {
+            if (!window.location.pathname.includes(loginPage)) {
+                window.location.replace(loginPage);
+            }
+        }, 50);
+
+        return false;
+    }
+
+    console.log('checkAuth: acesso permitido');
+    return true;
+}
+
+/**
+ * Obtém o token correto baseado no role passado como parâmetro.
+ * @param {string} role - 'admin' ou 'driver'
+ * @returns {string|null} O token ou null
+ */
+function getAuthToken(role) {
     if (role === 'admin') {
-      localStorage.removeItem('adminToken');
-      localStorage.removeItem('adminName');
-      window.location.href = 'login.html';
-    } else {
-      localStorage.removeItem('driverToken');
-      localStorage.removeItem('driverName');
-      window.location.href = 'login-motorista.html';
+        return localStorage.getItem('adminToken');
+    } else if (role === 'driver') {
+        return localStorage.getItem('driverToken');
     }
-  }
-};
+    return null;
+}
 
-const handle401Safely = (role) => {
-  if (window.UI) {
-    window.UI.showAlert('A sua sessão expirou. Por favor, faça login novamente.', 'error');
-  }
-  setTimeout(() => {
-    handleLogout(role);
-  }, 1500);
-};
+/**
+ * Headers de autenticação seguros.
+ * @param {string} role - 'admin' ou 'driver' (obrigatório)
+ * @returns {Object} Headers com Authorization
+ */
+function getAuthHeaders(role) {
+    const token = getAuthToken(role);
+    if (!token) return {};
+    return {
+        'Authorization': `Bearer ${token}`
+    };
+}
 
-window.Auth = {
-  getAuthToken,
-  getAuthHeaders,
-  checkAuth,
-  handleLogin,
-  handleLogout,
-  handle401Safely
-};
+/**
+ * Processa login (admin ou motorista).
+ */
+async function handleLogin(e, role) {
+    e.preventDefault();
+
+    if (loginInProgress) return;
+    loginInProgress = true;
+
+    const form = e.target;
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    const email = form.querySelector('#email').value.trim();
+    const password = form.querySelector('#password').value;
+
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> A entrar...';
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, role })
+        });
+
+        // RATE LIMIT → parar tudo
+        if (response.status === 429) {
+            throw new Error(
+                'Demasiadas tentativas a partir deste IP. Aguarde alguns minutos antes de tentar novamente.'
+            );
+        }
+
+        const data = await response.json();
+
+        // 🔥 LOG CRÍTICO (NOVO)
+        console.log('LOGIN RESPONSE:', data);
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Erro no login');
+        }
+
+        // Guardar token conforme o role
+        if (role === 'admin') {
+            const token =
+    data.token ||
+    data.accessToken ||
+    data.jwt ||
+    data?.data?.token ||
+    data?.user?.token;
+
+if (!token) {
+    console.error('TOKEN NÃO ENCONTRADO NA RESPONSE:', data);
+    throw new Error('Falha de autenticação: token não recebido do servidor.');
+}
+
+localStorage.setItem('adminToken', token);
+            localStorage.setItem('adminName', data.user?.nome || 'Admin');
+            window.location.replace('index.html');
+        } else {
+            const token =
+    data.token ||
+    data.accessToken ||
+    data.jwt ||
+    data?.data?.token ||
+    data?.user?.token;
+
+if (!token) {
+    console.error('TOKEN NÃO ENCONTRADO NA RESPONSE:', data);
+    throw new Error('Falha de autenticação: token não recebido do servidor.');
+}
+
+localStorage.setItem('driverToken', token);
+            localStorage.setItem('driverName', data.user?.nome || 'Motorista');
+            window.location.replace('painel-de-entrega.html');
+        }
+
+    } catch (error) {
+        console.error('Falha no login:', error);
+
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert('Erro de Login', error.message, 'error');
+        } else {
+            alert(error.message);
+        }
+
+    } finally {
+        loginInProgress = false;
+        submitButton.disabled = false;
+        submitButton.innerHTML = role === 'admin' ? 'Entrar' : 'Iniciar Turno';
+    }
+}
+
+function handle401Safely(role) {
+    console.warn('⚠️ 401 recebido — verificação segura');
+
+    const tokenKey = role === 'admin' ? 'adminToken' : 'driverToken';
+    const token = localStorage.getItem(tokenKey);
+
+    // 🔒 só faz logout se realmente não houver token
+    if (!token) {
+        console.warn('🔴 Sem token — logout forçado');
+        handleLogout(role);
+    } else {
+        console.warn('🟡 Token existe — NÃO fazer logout automático');
+    }
+}
+
+/**
+ * Logout seguro.
+ */
+function handleLogout(role) {
+    if (role === 'admin') {
+        localStorage.removeItem('adminToken');
+        localStorage.removeItem('adminName');
+        window.location.href = 'login.html';
+    } else {
+        localStorage.removeItem('driverToken');
+        localStorage.removeItem('driverName');
+        window.location.href = 'login-motorista.html';
+    }
+}

@@ -1,12 +1,10 @@
-// ==================================================
-// CONFIGURAÇÃO DINÂMICA DA API
-// ==================================================
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+/*
+ * Ficheiro: js/common/api.js
+ *
+ * (Dependência #1)
+ *
+ * Define a constante global da API_URL para que todos os outros
+ * ficheiros de script (auth, admin, charts, map) a possam utilizar.
+ */
 
-const BASE_URL = isLocalhost ? 'http://localhost:3000' : 'https://entregaah-mz.onrender.com';
-const API_URL = `${BASE_URL}/api`;
-
-window.BASE_URL = BASE_URL;
-window.API_URL = API_URL;
-
-console.log(`[API Config] Base URL definida para: ${BASE_URL}`);
+const API_URL = 'https://entregaah-mz.onrender.com';

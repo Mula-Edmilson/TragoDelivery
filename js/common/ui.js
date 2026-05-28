@@ -1,158 +1,214 @@
-// ==================================================
-// MÓDULO DE INTERFACE E COMPONENTES
-// ==================================================
+/*
+ * Ficheiro: js/common/ui.js
+ * (Garante que 'closeConfirmationModal' existe)
+ */
 
-const UI = {
-  // ==================================================
-  // 1. ALERTAS PERSONALIZADOS
-  // ==================================================
-  showAlert: (message, type = 'success') => {
-    let container = document.getElementById('alert-container');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'alert-container';
-      container.className = 'fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none';
-      document.body.appendChild(container);
-    }
-
-    const alertEl = document.createElement('div');
-    const bg = type === 'success' ? 'bg-[#2F7A3C]' : type === 'warning' ? 'bg-[#C97813]' : 'bg-red-600';
-    const icon = type === 'success' ? 'fa-check-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle';
-
-    alertEl.className = `${bg} text-white px-4 py-3 rounded shadow-lg flex items-center gap-3 pointer-events-auto transition-all duration-300 transform translate-x-full`;
-    alertEl.innerHTML = `
-      <i class="fas ${icon} text-lg shrink-0"></i>
-      <span class="text-sm font-medium flex-1">${message}</span>
-      <button class="text-white/80 hover:text-white shrink-0" onclick="this.parentElement.remove()">
-        <i class="fas fa-times"></i>
-      </button>
-    `;
-
-    container.appendChild(alertEl);
-    
-    // Animação de entrada
-    setTimeout(() => alertEl.classList.remove('translate-x-full'), 10);
-
-    // Auto-remoção
-    setTimeout(() => {
-      alertEl.classList.add('opacity-0', 'translate-x-full');
-      setTimeout(() => alertEl.remove(), 300);
-    }, 4000);
-  },
-
-  // ==================================================
-  // 2. MODAIS
-  // ==================================================
-  openModal: (modalId) => {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-      modal.classList.remove('hidden');
-      modal.classList.add('flex');
-      document.body.style.overflow = 'hidden';
-    }
-  },
-
-  closeModal: (modalId) => {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-      modal.classList.add('hidden');
-      modal.classList.remove('flex');
-      document.body.style.overflow = '';
-    }
-  },
-
-  // ==================================================
-  // 3. LOADERS
-  // ==================================================
-  showLoader: (containerId) => {
-    const container = document.getElementById(containerId);
-    if (container) {
-      container.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-12">
-          <i class="fas fa-circle-notch fa-spin text-4xl text-[#2F7A3C]"></i>
-          <span class="text-sm text-[#50494B] mt-3 font-medium">A carregar dados...</span>
-        </div>
-      `;
-    }
-  },
-
-  showEmptyState: (containerId, message = 'Nenhum registo encontrado.') => {
-    const container = document.getElementById(containerId);
-    if (container) {
-      container.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-12 text-center">
-          <i class="fas fa-inbox text-4xl text-gray-300 mb-2"></i>
-          <span class="text-sm text-[#50494B]">${message}</span>
-        </div>
-      `;
-    }
-  },
-
-  // ==================================================
-  // 4. FORMATADORES
-  // ==================================================
-  formatCurrency: (value) => {
-    const num = Number(value) || 0;
-    return `${num.toLocaleString('pt-MZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MZN`;
-  },
-
-  formatDate: (dateString, withTime = true) => {
-    if (!dateString) return '-';
-    const date = new Date(dateString);
-    const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
-    if (withTime) {
-      options.hour = '2-digit';
-      options.minute = '2-digit';
-    }
-    return date.toLocaleDateString('pt-MZ', options);
-  },
-
-  // ==================================================
-  // 5. LABELS DE ESTADO
-  // ==================================================
-  getStatusLabel: (status) => {
-    const configs = {
-      pendente: { text: 'Pendente', bg: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-      atribuido: { text: 'Atribuído', bg: 'bg-blue-100 text-blue-800 border-blue-200' },
-      em_progresso: { text: 'Em Progresso', bg: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
-      recolha_em_progresso: { text: 'Em Recolha', bg: 'bg-amber-100 text-amber-800 border-amber-200' },
-      recolha_concluida: { text: 'Recolhido', bg: 'bg-teal-100 text-teal-800 border-teal-200' },
-      entrega_em_progresso: { text: 'Em Entrega', bg: 'bg-purple-100 text-purple-800 border-purple-200' },
-      concluido: { text: 'Concluído', bg: 'bg-green-100 text-green-800 border-green-200' },
-      cancelado: { text: 'Cancelado', bg: 'bg-red-100 text-red-800 border-red-200' }
-    };
-
-    const cfg = configs[status] || { text: status, bg: 'bg-gray-100 text-gray-800 border-gray-200' };
-    return `<span class="px-2.5 py-0.5 rounded text-xs font-semibold border ${cfg.bg} inline-block">${cfg.text}</span>`;
-  },
-
-  getDriverStatusLabel: (status) => {
-    const configs = {
-      online_livre: { text: 'Online (Livre)', bg: 'bg-green-100 text-green-800' },
-      online_ocupado: { text: 'Online (Ocupado)', bg: 'bg-yellow-100 text-yellow-800' },
-      em_recolha: { text: 'Em Recolha', bg: 'bg-amber-100 text-amber-800' },
-      em_entrega: { text: 'Em Entrega', bg: 'bg-purple-100 text-purple-800' },
-      offline: { text: 'Offline', bg: 'bg-gray-100 text-gray-800' }
-    };
-
-    const cfg = configs[status] || { text: status, bg: 'bg-gray-100 text-gray-800' };
-    return `<span class="px-2 py-0.5 rounded text-xs font-semibold ${cfg.bg} inline-block">${cfg.text}</span>`;
-  },
-
-  // ==================================================
-  // 6. LABELS DE PAGAMENTO
-  // ==================================================
-  getPaymentLabel: (method) => {
-    const names = {
-      cash: 'Dinheiro',
-      mpesa: 'M-Pesa',
-      emola: 'E-Mola',
-      mkesh: 'M-Kesh',
-      bank_transfer: 'Transferência'
-    };
-    const name = names[method] || method;
-    return `<span class="px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-[#50494B] border border-gray-300 inline-block">${name}</span>`;
-  }
+// --- (MELHORIA) Constantes de Nomes de Serviço ---
+const SERVICE_NAMES = {
+    'doc': 'Tram. Documentos',
+    'farma': 'Farmácia',
+    'carga': 'Cargas',
+    'rapido': 'Delivery Rápido',
+    'outros': 'Outros'
 };
 
-window.UI = UI;
+/* --- Funções de Alerta Customizado --- */
+function showCustomAlert(title, message, type = 'info') {
+    // ... (código sem alterações) ...
+    const modal = document.getElementById('custom-alert-modal');
+    if (!modal) { 
+        alert(`${title}: ${message}`);
+        return; 
+    }
+    const modalContent = modal.querySelector('.modal-content');
+    modalContent.classList.remove('success', 'error');
+    if (type === 'success') modalContent.classList.add('success');
+    if (type === 'error') modalContent.classList.add('error');
+    document.getElementById('custom-alert-title').innerText = title;
+    document.getElementById('custom-alert-message').innerText = message;
+    modal.classList.remove('hidden');
+}
+function closeCustomAlert() {
+    // ... (código sem alterações) ...
+    const modal = document.getElementById('custom-alert-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+/* --- Funções de Fecho de Modais --- */
+function closeAssignModal() { 
+    document.getElementById('assign-modal').classList.add('hidden'); 
+}
+function closeEditDriverModal() { 
+    document.getElementById('edit-driver-modal').classList.add('hidden'); 
+    document.getElementById('form-edit-motorista').reset();
+}
+function closeHistoryDetailModal() { 
+    document.getElementById('history-detail-modal').classList.add('hidden'); 
+}
+function closeChartResetModal() { 
+    document.getElementById('chart-reset-modal').classList.add('hidden'); 
+    document.getElementById('chart-reset-password').value = ''; 
+}
+function openChartResetModal() { 
+    document.getElementById('chart-reset-modal').classList.remove('hidden'); 
+}
+function closeDriverReportModal() { 
+    document.getElementById('driver-report-modal').classList.add('hidden'); 
+}
+function closeEditClientModal() {
+    document.getElementById('edit-client-modal').classList.add('hidden');
+    document.getElementById('form-edit-cliente').reset();
+}
+function closeStatementModal() {
+    document.getElementById('statement-modal').classList.add('hidden');
+}
+
+// --- (CORREÇÃO ADICIONADA) ---
+/**
+ * Fecha o modal genérico de confirmação.
+ */
+function closeConfirmationModal() {
+    const modal = document.getElementById('confirmation-modal');
+    if(modal) {
+        modal.classList.add('hidden');
+        // Limpa o input para a próxima vez
+        document.getElementById('confirmation-input').value = '';
+    }
+}
+// --- FIM DA CORREÇÃO ---
+
+
+/* --- Funções de Toggle de Formulários --- */
+// ... (showAddDriverForm, showAddClientForm - sem alterações) ...
+function showAddDriverForm(show) {
+    const form = document.getElementById('form-add-motorista');
+    const button = document.getElementById('btn-show-driver-form');
+    if (!form || !button) return;
+    if (show) { 
+        form.classList.remove('hidden'); 
+        button.classList.add('hidden'); 
+    } else { 
+        form.classList.add('hidden'); 
+        button.classList.remove('hidden'); 
+        form.reset(); 
+    }
+}
+function showAddClientForm(show) {
+    const form = document.getElementById('form-add-cliente');
+    const button = document.getElementById('btn-show-client-form');
+    if (!form || !button) return;
+    if (show) { 
+        form.classList.remove('hidden'); 
+        button.classList.add('hidden'); 
+    } else { 
+        form.classList.add('hidden'); 
+        button.classList.remove('hidden'); 
+        form.reset(); 
+    }
+}
+
+/* --- Funções Auxiliares de Formulários (Upload de Imagem) --- */
+// ... (handleImageUpload, removeImage - sem alterações) ...
+function handleImageUpload(event) { 
+    const file = event.target.files[0]; 
+    if (!file) return; 
+    const previewContainer = document.getElementById('image-preview'); 
+    const previewImg = previewContainer.querySelector('.preview-img'); 
+    const reader = new FileReader(); 
+    reader.onload = function(e) { 
+        previewImg.src = e.target.result; 
+    }; 
+    reader.readAsDataURL(file); 
+    previewContainer.classList.remove('hidden'); 
+}
+function removeImage() { 
+    const previewContainer = document.getElementById('image-preview'); 
+    if (!previewContainer) return; 
+    previewContainer.querySelector('.preview-img').src = ''; 
+    previewContainer.classList.add('hidden'); 
+    document.getElementById('delivery-image').value = ''; 
+}
+
+/* --- Funções Auxiliares de Formatação --- */
+// ... (formatDuration, formatTotalDuration, filterHistoryTable, setStatementDates - sem alterações) ...
+function formatDuration(start, end) { 
+    if (!start || !end) return 'N/D'; 
+    const diffMs = new Date(end) - new Date(start); 
+    if (diffMs < 0) return 'N/D'; 
+    const minutes = Math.floor(diffMs / 60000); 
+    const seconds = Math.floor((diffMs % 60000) / 1000); 
+    return `${minutes} min ${seconds} s`; 
+}
+function formatTotalDuration(totalMs) { 
+    if (totalMs < 0) return 'N/D'; 
+    const totalMinutes = Math.floor(totalMs / 60000); 
+    const hours = Math.floor(totalMinutes / 60); 
+    const minutes = totalMinutes % 60; 
+    return `${hours} h ${minutes} min`; 
+}
+function filterHistoryTable(event) {
+    const searchTerm = event.target.value.toLowerCase();
+    const tableBody = document.getElementById('history-orders-table-body');
+    const rows = tableBody.getElementsByTagName('tr');
+    for (const row of rows) {
+        if (row.getElementsByTagName('td').length > 1) {
+            const rowText = row.textContent.toLowerCase();
+            row.style.display = rowText.includes(searchTerm) ? '' : 'none';
+        }
+    }
+}
+function setStatementDates(range) {
+    const today = new Date();
+    const endDate = new Date();
+    let startDate = new Date();
+    if (range === 'this_week') {
+        const dayOfWeek = today.getDay();
+        startDate.setDate(today.getDate() - dayOfWeek);
+    } else if (range === 'this_month') {
+        startDate.setDate(1);
+    }
+    document.getElementById('statement-start-date').value = startDate.toISOString().split('T')[0];
+    document.getElementById('statement-end-date').value = endDate.toISOString().split('T')[0];
+}
+
+/* --- Design system: labels de tabela para mobile --- */
+(function installTableLabelEnhancer() {
+    function enhanceTable(table) {
+        if (!table || !table.querySelector) return;
+        const headers = Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent.trim());
+        if (!headers.length) return;
+
+        table.querySelectorAll('tbody tr').forEach((row) => {
+            Array.from(row.children).forEach((cell, index) => {
+                if (cell.tagName !== 'TD' || cell.hasAttribute('colspan')) return;
+                cell.setAttribute('data-label', headers[index] || '');
+            });
+        });
+    }
+
+    function enhanceAllTables(root = document) {
+        root.querySelectorAll('table').forEach(enhanceTable);
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => enhanceAllTables());
+    } else {
+        enhanceAllTables();
+    }
+
+    const observer = new MutationObserver((mutations) => {
+        let shouldEnhance = false;
+        mutations.forEach((mutation) => {
+            if (mutation.addedNodes.length) shouldEnhance = true;
+        });
+        if (shouldEnhance) requestAnimationFrame(() => enhanceAllTables());
+    });
+
+    if (document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            observer.observe(document.body, { childList: true, subtree: true });
+        });
+    }
+})();

@@ -1,322 +1,452 @@
-// ==================================================
-// MÓDULO DE MODAIS DO ADMINISTRADOR (adminModals.js)
-// ==================================================
+/*
+ * Ficheiro: js/admin/adminModals.js (VERSÃO COMPLETA E CORRIGIDA)
+ *
+ * Contém toda a lógica de ABERTURA e carregamento de dados
+ * dos modais (pop-ups) do painel de admin.
+ */
 
-const AdminModals = {
-  // --- ORDER ASSIGNMENT ---
-  openAssignModal: async (orderId) => {
-    document.getElementById('assign-order-id').value = orderId;
-    window.UI.openModal('modal-assign');
+/**
+ * Calcula as durações por fase da entrega (central → recolha, recolha → entrega).
+ * Usa timestamps específicos se existirem, senão faz fallback para timestamp_started/completed.
+ * @param {object} order
+ * @returns {{pickupMs:number|null, deliveryMs:number|null, totalMs:number, pickupLabel:string, deliveryLabel:string, totalLabel:string}}
+ */
+function getPhaseDurations(order) {
+    const toMs = (value) => {
+        if (!value) return null;
+        const d = new Date(value);
+        const t = d.getTime();
+        return Number.isNaN(t) ? null : t;
+    };
 
-    const selectEl = document.getElementById('assign-driver-select');
-    selectEl.innerHTML = '<option value="">Carregando motoristas disponíveis...</option>';
+    const pickupStart = toMs(order.pickupStartAt);
+    const pickupEnd = toMs(order.pickupCompletedAt);
+    const deliveryStart = toMs(order.deliveryStartAt);
+    const deliveryEnd = toMs(order.deliveryCompletedAt || order.timestamp_completed);
 
-    try {
-      const drivers = await window.AdminApi.fetchAvailableDrivers();
-      if (drivers.length === 0) {
-        selectEl.innerHTML = '<option value="">Nenhum motorista online e livre no momento</option>';
-        return;
-      }
+    const computeDiff = (start, end) => {
+        if (start == null || end == null) return null;
+        if (end < start) return null;
+        return end - start;
+    };
 
-      selectEl.innerHTML = '<option value="">Selecione o motorista...</option>';
-      drivers.forEach(d => {
-        selectEl.innerHTML += `<option value="${d._id}">${d.user.nome} (${d.vehicle_plate || 'Sem Viatura'})</option>`;
-      });
-    } catch (err) {
-      selectEl.innerHTML = '<option value="">Erro ao carregar motoristas</option>';
+    const pickupMs = computeDiff(pickupStart, pickupEnd);
+    const deliveryMs = computeDiff(deliveryStart, deliveryEnd);
+
+    let totalMs = 0;
+    if (pickupMs != null) totalMs += pickupMs;
+    if (deliveryMs != null) totalMs += deliveryMs;
+
+    // Fallback para duração total clássica, se por algum motivo as fases não estiverem marcadas
+    if (totalMs === 0 && order.timestamp_started && order.timestamp_completed) {
+        const start = toMs(order.timestamp_started);
+        const end = toMs(order.timestamp_completed);
+        const diff = computeDiff(start, end);
+        if (diff != null) {
+            totalMs = diff;
+        }
     }
-  },
 
-  submitAssignOrder: async (e) => {
-    e.preventDefault();
-    const orderId = document.getElementById('assign-order-id').value;
-    const driverId = document.getElementById('assign-driver-select').value;
+    const formatFromMs = (ms) => {
+        if (ms == null) return 'N/D';
+        const totalMinutes = Math.round(ms / 60000);
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+        if (hours <= 0) {
+            return `${totalMinutes} min`;
+        }
+        if (minutes === 0) {
+            return `${hours}h`;
+        }
+        return `${hours}h ${minutes}min`;
+    };
 
-    if (!driverId) {
-      window.UI.showAlert('Selecione um motorista.', 'warning');
-      return;
-    }
+    return {
+        pickupMs,
+        deliveryMs,
+        totalMs,
+        pickupLabel: formatFromMs(pickupMs),
+        deliveryLabel: formatFromMs(deliveryMs),
+        totalLabel: formatFromMs(totalMs)
+    };
+}
 
+/**
+ * Abre o modal genérico de confirmação (para ações destrutivas).
+ * @param {object} options - { title, message, confirmText, onConfirm }
+ */
+function openConfirmationModal({ title, message, confirmText, onConfirm }) {
+    const modal = document.getElementById('confirmation-modal');
+    document.getElementById('confirmation-title').innerHTML = title;
+    document.getElementById('confirmation-message').innerHTML = message;
+    
+    const input = document.getElementById('confirmation-input');
+    const label = document.getElementById('confirmation-input-label');
+    const confirmBtn = document.getElementById('btn-confirm-action');
+
+    label.innerHTML = `Para confirmar, digite a palavra: <b>${confirmText}</b>`;
+    input.value = '';
+    confirmBtn.disabled = true;
+    
+    // Remove listeners antigos para evitar duplicação
+    input.oninput = null;
+    confirmBtn.onclick = null;
+
+    input.oninput = () => {
+        if (input.value.toUpperCase() === confirmText) {
+            confirmBtn.disabled = false;
+        } else {
+            confirmBtn.disabled = true;
+        }
+    };
+    
+    confirmBtn.onclick = () => {
+        onConfirm(); // Chama a função de callback (ex: handleDeleteOldHistory)
+    };
+
+    modal.classList.remove('hidden');
+}
+
+/**
+ * Abre o modal para atribuir/reatribuir uma encomenda.
+ * @param {string} orderId - O ID da encomenda.
+ */
+async function openAssignModal(orderId) {
+    const modal = document.getElementById('assign-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('modal-order-id').innerText = `#${orderId.slice(-6)}`;
+    
+    const select = document.getElementById('driver-select-dropdown');
+    select.innerHTML = '<option value="">A carregar...</option>';
+    
     try {
-      await window.AdminApi.assignOrder(orderId, driverId);
-      window.UI.showAlert('Entrega atribuída com sucesso!');
-      window.UI.closeModal('modal-assign');
-      window.AdminApp.loadActiveOrders();
-    } catch (err) {
-      window.UI.showAlert(err.message, 'error');
-    }
-  },
+        const response = await fetch(`${API_URL}/api/drivers/available`, { headers: getAuthHeaders('admin') });
+        if (response.status === 401) { return handleLogout('admin'); }
 
-  // --- ORDER DETAILS ---
-  openOrderDetails: async (orderId) => {
-    try {
-      const res = await fetch(`${window.API_URL}/orders/${orderId}`, { headers: window.Auth.getAuthHeaders('admin') });
-      if (!res.ok) throw new Error('Não foi possível carregar os detalhes.');
-      const order = await res.json();
-
-      const detailsContent = document.getElementById('details-modal-content');
-      
-      let driverInfo = 'Não Atribuído';
-      if (order.assigned_to_driver) {
-        const u = order.assigned_to_driver.user || {};
-        driverInfo = `${u.nome || 'Desconhecido'} (${order.assigned_to_driver.vehicle_plate || '-'})`;
-      }
-
-      detailsContent.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div>
-            <p class="font-bold text-gray-500 uppercase">Dados do Pedido</p>
-            <p class="mt-1"><b>ID:</b> ${order._id}</p>
-            <p><b>Serviço:</b> ${order.service_type.toUpperCase()}</p>
-            <p><b>Preço:</b> ${window.UI.formatCurrency(order.price)}</p>
-            <p><b>Pagamento:</b> ${window.UI.getPaymentLabel(order.payment_method)}</p>
-            <p class="mt-2"><b>Status:</b> ${window.UI.getStatusLabel(order.status)}</p>
-          </div>
-          <div>
-            <p class="font-bold text-gray-500 uppercase">Cliente e Entrega</p>
-            <p class="mt-1"><b>Cliente:</b> ${order.client_name}</p>
-            <p><b>Telefones:</b> ${order.client_phone1} ${order.client_phone2 ? ' / ' + order.client_phone2 : ''}</p>
-            <p><b>Morada:</b> ${order.address_text}</p>
-            <p class="mt-2"><b>Motorista:</b> ${driverInfo}</p>
-          </div>
-        </div>
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
         
-        <div class="mt-4 pt-3 border-t grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div>
-            <p class="font-bold text-gray-500 uppercase">Valores Operacionais</p>
-            <p class="mt-1"><b>Ganho Motorista:</b> ${window.UI.formatCurrency(order.valor_motorista || 0)}</p>
-            <p><b>Lucro Empresa:</b> ${window.UI.formatCurrency(order.valor_empresa || 0)}</p>
-          </div>
-          <div>
-            <p class="font-bold text-gray-500 uppercase">Código de Fecho</p>
-            <p class="mt-1 font-mono text-lg font-bold text-[#2F7A3C] tracking-widest">${order.verification_code}</p>
-          </div>
-        </div>
-
-        ${order.image_url ? `
-          <div class="mt-4 pt-3 border-t">
-            <p class="font-bold text-gray-500 uppercase mb-2 text-xs">Imagem Anexa</p>
-            <img src="${window.BASE_URL}${order.image_url}" alt="Anexo do pedido" class="max-h-48 rounded object-cover border mx-auto">
-          </div>
-        ` : ''}
-      `;
-
-      window.UI.openModal('modal-details');
-    } catch (err) {
-      window.UI.showAlert(err.message, 'error');
+        if (data.drivers.length === 0) { 
+            select.innerHTML = '<option value="">Nenhum motorista disponível</option>'; 
+            return; 
+        }
+        
+        select.innerHTML = '<option value="">-- Selecione um motorista --</option>';
+        data.drivers.forEach(driver => { 
+            select.innerHTML += `<option value="${driver.profile._id}">${driver.nome} (${driver.profile.vehicle_plate})</option>`; 
+        });
+        
+        // Atribui a função de clique ao botão (usando a função do adminApi.js)
+        document.getElementById('btn-confirm-assign').onclick = async () => {
+            const driverId = select.value;
+            if (!driverId) { 
+                showCustomAlert('Atenção', 'Por favor, selecione um motorista.'); 
+                return; 
+            }
+            await confirmAssign(orderId, driverId);
+        };
+        
+    } catch (error) { 
+        console.error('Falha ao carregar motoristas disponíveis:', error); 
+        select.innerHTML = '<option value="">Erro ao carregar</option>'; 
     }
-  },
+}
 
-  // --- DRIVER REPORT ---
-  openDriverReportModal: async (driverId, driverName) => {
-    document.getElementById('modal-generic-title').innerText = `Relatório de Desempenho: ${driverName}`;
-    const content = document.getElementById('modal-generic-content');
-    content.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-[#2F7A3C]"></i></div>';
+/**
+ * Abre o modal para editar os dados de um motorista.
+ * @param {string} driverUserId - O ID do *User* do motorista.
+ */
+async function openEditDriverModal(driverUserId) {
+    const modal = document.getElementById('edit-driver-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('edit-driver-id').value = driverUserId;
     
-    window.UI.openModal('modal-generic');
+    // Limpa o formulário enquanto carrega
+    document.getElementById('form-edit-motorista').reset();
+    document.getElementById('edit-driver-name').value = 'A carregar...';
+    document.getElementById('edit-driver-phone').value = 'A carregar...';
+    
+    try {
+        const response = await fetch(`${API_URL}/api/drivers/${driverUserId}`, { headers: getAuthHeaders('admin') });
+        if (response.status === 401) { return handleLogout('admin'); }
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        
+        const driver = data.driver;
+        const profile = driver.profile || {};
+        
+        // Preenche o formulário
+        document.getElementById('edit-driver-name').value = driver.nome;
+        document.getElementById('edit-driver-phone').value = driver.telefone;
+        document.getElementById('edit-driver-plate').value = profile.vehicle_plate || '';
+        document.getElementById('edit-driver-status').value = profile.status || 'offline';
+        document.getElementById('edit-driver-commission').value = profile.commissionRate || 20;
+        
+    } catch (error) { 
+        console.error('Falha ao carregar dados do motorista:', error); 
+        showCustomAlert('Erro', 'Erro ao carregar dados do motorista.', 'error'); 
+        closeEditDriverModal(); 
+    }
+}
+
+/**
+ * Abre o modal com os detalhes de uma encomenda do histórico.
+ * Agora mostra também:
+ *  - Tempo Central → Recolha
+ *  - Tempo Recolha → Entrega
+ *  - Duração Total
+ * @param {string} orderId - O ID da encomenda.
+ */
+async function openHistoryDetailModal(orderId) {
+    const modal = document.getElementById('history-detail-modal');
+    const body = document.getElementById('history-modal-body');
+    modal.classList.remove('hidden');
+    document.getElementById('history-modal-id').innerText = `#${orderId.slice(-6)}`;
+    body.innerHTML = '<p>A carregar detalhes...</p>';
+    
+    try {
+        const response = await fetch(`${API_URL}/api/orders/${orderId}`, { headers: getAuthHeaders('admin') });
+        if (response.status === 401) { return handleLogout('admin'); }
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        
+        const order = data.order;
+        const motorista = order.assigned_to_driver ? order.assigned_to_driver.user.nome : 'N/D';
+        const admin = order.created_by_admin ? order.created_by_admin.nome : 'N/D';
+        
+        let coordsHtml = '<p><strong>Pin do Mapa:</strong> N/D</p>';
+        if (order.address_coords && order.address_coords.lat) {
+            coordsHtml = `<p><strong>Pin do Mapa:</strong> ${order.address_coords.lat.toFixed(5)}, ${order.address_coords.lng.toFixed(5)}</p>`;
+        }
+
+        const phases = getPhaseDurations(order);
+        
+        body.innerHTML = `
+            <p><strong>Cliente:</strong> ${order.client_name}</p>
+            <p><strong>Telefone:</strong> ${order.client_phone1}</p>
+            <p><strong>Endereço:</strong> ${order.address_text || 'N/D'}</p>
+            ${coordsHtml}
+            <p><strong>Valor:</strong> ${order.price ? order.price.toFixed(2) + ' MZN' : 'N/D'}</p>
+            <p><strong>Natureza:</strong> ${SERVICE_NAMES[order.service_type] || order.service_type}</p>
+            <p><strong>Status:</strong> ${typeof getOrderStatusLabel === 'function' ? getOrderStatusLabel(order.status) : order.status}</p>
+            <p><strong>Código:</strong> ${order.verification_code}</p>
+            <p><strong>Motorista:</strong> ${motorista}</p>
+            <p><strong>Admin:</strong> ${admin}</p>
+            <p><strong>Criado em:</strong> ${order.createdAt ? new Date(order.createdAt).toLocaleString('pt-MZ') : 'N/D'}</p>
+            <p><strong>Iniciado em:</strong> ${order.timestamp_started ? new Date(order.timestamp_started).toLocaleString('pt-MZ') : 'N/D'}</p>
+            <p><strong>Concluído em:</strong> ${order.timestamp_completed ? new Date(order.timestamp_completed).toLocaleString('pt-MZ') : 'N/D'}</p>
+            <hr class="modal-separator">
+            <p><strong>Tempo Central → Recolha:</strong> ${phases.pickupLabel}</p>
+            <p><strong>Tempo Recolha → Entrega:</strong> ${phases.deliveryLabel}</p>
+            <p><strong>Duração Total:</strong> ${phases.totalLabel}</p>
+        `;
+    } catch (error) { 
+        console.error('Falha ao carregar detalhes do histórico:', error); 
+        body.innerHTML = '<p>Erro ao carregar detalhes.</p>'; 
+    }
+}
+
+/**
+ * Abre o modal de relatório de entregas de um motorista.
+ * Agora mostra também, por linha:
+ *  - C → R (Central → Recolha)
+ *  - R → E (Recolha → Entrega)
+ * @param {string} driverUserId - O ID do *User* do motorista.
+ * @param {string} driverName - O nome do motorista.
+ */
+async function openDriverReportModal(driverUserId, driverName) {
+    const modal = document.getElementById('driver-report-modal');
+    modal.classList.remove('hidden');
+    document.getElementById('driver-report-title').innerText = `Relatório de ${driverName}`;
+    document.getElementById('report-total-entregas').innerText = '...';
+    document.getElementById('report-total-duracao').innerText = '...';
+    
+    const tableBody = document.getElementById('driver-report-table-body');
+    tableBody.innerHTML = '<tr><td colspan="5">A carregar relatório...</td></tr>';
+    
+    try {
+        const response = await fetch(`${API_URL}/api/drivers/${driverUserId}/report`, { headers: getAuthHeaders('admin') });
+        if (response.status === 401) { return handleLogout('admin'); }
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        
+        const orders = data.orders;
+        let totalMs = 0;
+
+        orders.forEach(order => {
+            const phases = getPhaseDurations(order);
+            if (phases.totalMs) {
+                totalMs += phases.totalMs;
+            }
+        });
+        
+        document.getElementById('report-total-entregas').innerText = orders.length;
+        document.getElementById('report-total-duracao').innerText = formatTotalDuration(totalMs);
+        
+        tableBody.innerHTML = '';
+        if (orders.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5">Nenhuma entrega concluída encontrada.</td></tr>';
+            return;
+        }
+        
+        orders.forEach(order => {
+            const serviceName = SERVICE_NAMES[order.service_type] || order.service_type;
+            const phases = getPhaseDurations(order);
+
+            tableBody.innerHTML += `
+                <tr>
+                    <td>#${order._id.slice(-6)}</td>
+                    <td>${order.client_name}</td>
+                    <td>${serviceName}</td>
+                    <td>${new Date(order.timestamp_completed).toLocaleDateString('pt-MZ')}</td>
+                    <td>
+                        <div><strong>C → R:</strong> ${phases.pickupLabel}</div>
+                        <div><strong>R → E:</strong> ${phases.deliveryLabel}</div>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (error) { 
+        console.error('Falha ao carregar relatório do motorista:', error); 
+        tableBody.innerHTML = '<tr><td colspan="5">Erro ao carregar relatório.</td></tr>'; 
+    }
+}
+
+/**
+ * Abre o modal para editar os dados de um cliente.
+ * @param {string} clientId - O ID do cliente.
+ */
+async function openEditClientModal(clientId) {
+    const modal = document.getElementById('edit-client-modal');
+    modal.classList.remove('hidden');
+    
+    // Limpa o formulário enquanto carrega
+    document.getElementById('form-edit-cliente').reset();
+    document.getElementById('edit-client-nome').value = 'A carregar...';
+    document.getElementById('edit-client-telefone').value = 'A carregar...';
 
     try {
-      const orders = await window.AdminApi.fetchDriverReport(driverId);
-      
-      if (orders.length === 0) {
-        content.innerHTML = '<p class="text-center text-gray-500 py-6 text-xs">Este motorista ainda não concluiu nenhuma entrega.</p>';
-        return;
-      }
+        const response = await fetch(`${API_URL}/api/clients/${clientId}`, { headers: getAuthHeaders('admin') });
+        if (response.status === 401) { return handleLogout('admin'); }
 
-      let totalValue = 0;
-      let totalDriverEarnings = 0;
-      orders.forEach(o => {
-        totalValue += o.price;
-        totalDriverEarnings += (o.valor_motorista || 0);
-      });
-
-      let html = `
-        <div class="grid grid-cols-2 gap-2 text-center mb-4">
-          <div class="p-2 bg-gray-50 rounded border text-xs">
-            <span class="text-[10px] text-gray-500 uppercase block">Total Movimentado</span>
-            <span class="font-bold text-gray-800">${window.UI.formatCurrency(totalValue)}</span>
-          </div>
-          <div class="p-2 bg-gray-50 rounded border text-xs">
-            <span class="text-[10px] text-gray-500 uppercase block">Ganhos do Motorista</span>
-            <span class="font-bold text-[#2F7A3C]">${window.UI.formatCurrency(totalDriverEarnings)}</span>
-          </div>
-        </div>
-
-        <div class="max-h-60 overflow-y-auto border rounded divide-y text-xs">
-      `;
-
-      orders.forEach(o => {
-        html += `
-          <div class="p-2.5 flex items-center justify-between hover:bg-gray-50">
-            <div>
-              <span class="font-mono font-bold text-[#2F7A3C]">#${o._id.substring(0, 6)}</span>
-              <span class="text-gray-500 block text-[10px]">${window.UI.formatDate(o.timestamp_completed)}</span>
-            </div>
-            <div class="text-right">
-              <span class="font-bold text-gray-800">${window.UI.formatCurrency(o.price)}</span>
-              <span class="text-gray-500 block text-[10px]">${o.service_type.toUpperCase()}</span>
-            </div>
-          </div>
-        `;
-      });
-
-      html += '</div>';
-      content.innerHTML = html;
-    } catch (err) {
-      content.innerHTML = `<p class="text-center text-red-600 py-6 text-xs">${err.message}</p>`;
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message);
+        
+        const client = data.client;
+        document.getElementById('edit-client-id').value = client._id;
+        document.getElementById('edit-client-nome').value = client.nome;
+        document.getElementById('edit-client-telefone').value = client.telefone;
+        document.getElementById('edit-client-empresa').value = client.empresa || '';
+        document.getElementById('edit-client-email').value = client.email || '';
+        document.getElementById('edit-client-nuit').value = client.nuit || '';
+        document.getElementById('edit-client-endereco').value = client.endereco || '';
+        
+    } catch (error) {
+        console.error('Falha ao carregar dados do cliente:', error);
+        showCustomAlert('Erro', 'Erro ao carregar dados do cliente.', 'error');
+        closeEditClientModal();
     }
-  },
+}
 
-  // --- DRIVER TRIPS (HISTÓRICO DE VIAGENS) ---
-  openDriverTripsModal: async (driverId, driverName) => {
-    document.getElementById('modal-generic-title').innerText = `Rasto Operacional (Viagens): ${driverName}`;
-    const content = document.getElementById('modal-generic-content');
-    content.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-2xl text-[#2F7A3C]"></i></div>';
+/**
+ * Abre o modal de extrato (faturação) de um cliente.
+ * @param {string} clientId - O ID do cliente.
+ * @param {string} clientName - O nome do cliente.
+ */
+function openStatementModal(clientId, clientName) {
+    const modal = document.getElementById('statement-modal');
+    document.getElementById('statement-client-name').textContent = `Extrato de ${clientName}`;
+    document.getElementById('statement-client-id').value = clientId;
     
-    window.UI.openModal('modal-generic');
+    // Limpa o modal
+    document.getElementById('statement-results').classList.add('hidden');
+    document.getElementById('statement-table-body').innerHTML = '';
+    document.getElementById('statement-start-date').value = '';
+    document.getElementById('statement-end-date').value = '';
+    
+    modal.classList.remove('hidden');
+}
 
+/**
+ * Preenche o modal de extrato com os resultados da API.
+ * (Chamado por 'handleGenerateStatement' em adminApi.js)
+ */
+function populateStatementModal(data, startDate, endDate) {
+    const { totalValue, totalOrders, ordersList } = data;
+    
+    const formattedTotal = new Intl.NumberFormat('pt-MZ', { style: 'currency', currency: 'MZN' }).format(totalValue);
+    document.getElementById('statement-total-value').textContent = formattedTotal;
+    document.getElementById('statement-total-orders').textContent = `${totalOrders} Pedidos`;
+    
+    const start = new Date(startDate + 'T00:00:00Z').toLocaleDateString('pt-MZ', { timeZone: 'UTC' });
+    const end = new Date(endDate + 'T00:00:00Z').toLocaleDateString('pt-MZ', { timeZone: 'UTC' });
+    document.getElementById('statement-date-range').textContent = `Pedidos Concluídos de ${start} a ${end}`;
+
+    const tableBody = document.getElementById('statement-table-body');
+    tableBody.innerHTML = '';
+    
+    if (ordersList.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="5">Nenhum pedido concluído neste período.</td></tr>';
+    } else {
+        ordersList.forEach(order => {
+            tableBody.innerHTML += `
+                <tr>
+                    <td>${new Date(order.timestamp_completed).toLocaleDateString('pt-MZ')}</td>
+                    <td>#${order._id.slice(-6)}</td>
+                    <td>${SERVICE_NAMES[order.service_type] || order.service_type}</td>
+                    <td>${order.price.toFixed(2)} MZN</td>
+                    <td>${typeof getPaymentMethodLabel === 'function' ? getPaymentMethodLabel(order.payment_method) : (order.payment_method || '—')}</td>
+                </tr>
+            `;
+        });
+    }
+    
+    document.getElementById('statement-results').classList.remove('hidden');
+}
+
+/**
+ * Gera e baixa um PDF do extrato do cliente.
+ * (Chamado pelo event listener em admin.js)
+ */
+function handleDownloadPDF() {
     try {
-      const trips = await window.AdminApi.fetchDriverTrips(driverId);
-      
-      if (trips.length === 0) {
-        content.innerHTML = '<p class="text-center text-gray-500 py-6 text-xs">Nenhum registo de viagem gravado para este motorista.</p>';
-        return;
-      }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        const clientName = document.getElementById('statement-client-name').textContent;
+        const cleanClientName = clientName.replace('Extrato de ', '');
+        const dateRange = document.getElementById('statement-date-range').textContent;
+        const totalValue = document.getElementById('statement-total-value').textContent;
+        const totalOrders = document.getElementById('statement-total-orders').textContent;
 
-      let html = '<div class="max-h-72 overflow-y-auto border rounded divide-y text-xs">';
+        doc.setFontSize(18);
+        doc.text('Extrato de Conta de Cliente', 14, 22);
+        
+        doc.setFontSize(11);
+        doc.setTextColor(100);
+        doc.text(`Cliente: ${cleanClientName}`, 14, 32);
+        doc.text(`Período: ${dateRange}`, 14, 38);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text(`Total de Pedidos: ${totalOrders}`, 14, 50);
+        doc.text(`Valor Total Gasto: ${totalValue}`, 14, 56);
 
-      trips.forEach(t => {
-        const metrics = t.metrics || {};
-        html += `
-          <div class="p-3 hover:bg-gray-50">
-            <div class="flex items-center justify-between mb-1">
-              <span class="font-bold uppercase text-[10px] px-1.5 py-0.5 bg-gray-100 rounded">${t.type}</span>
-              <span class="text-gray-500 text-[10px]">${window.UI.formatDate(t.startedAt)}</span>
-            </div>
-            <p class="font-medium text-gray-800"><b>Origem:</b> ${t.origin || 'Desconhecida'}</p>
-            <p class="font-medium text-gray-800"><b>Destino:</b> ${t.destination || 'Desconhecido'}</p>
-            <div class="mt-2 flex items-center justify-between text-[11px] text-gray-500 border-t pt-1">
-              <span><b>Distância:</b> ${metrics.distance ? metrics.distance + ' km' : '-'}</span>
-              <span><b>Duração:</b> ${metrics.duration ? metrics.duration + ' min' : '-'}</span>
-              <span><b>Status:</b> ${t.status}</span>
-            </div>
-          </div>
-        `;
-      });
+        doc.autoTable({
+            html: '#statement-results .table-pedidos',
+            startY: 65,
+            theme: 'grid',
+            styles: { fontSize: 9 },
+            headStyles: { fillColor: [44, 62, 80] }
+        });
+        
+        doc.save(`Extrato_${cleanClientName.replace(/ /g, '_')}.pdf`);
 
-      html += '</div>';
-      content.innerHTML = html;
-    } catch (err) {
-      content.innerHTML = `<p class="text-center text-red-600 py-6 text-xs">${err.message}</p>`;
+    } catch (error) {
+        console.error('Erro ao gerar PDF:', error);
+        showCustomAlert('Erro', 'Não foi possível gerar o PDF. Tente novamente.', 'error');
     }
-  },
-
-  // --- CLIENT STATEMENT ---
-  openClientStatementModal: async (clientId, clientName) => {
-    document.getElementById('modal-generic-title').innerText = `Extrato Financeiro: ${clientName}`;
-    const content = document.getElementById('modal-generic-content');
-    
-    // Injetar formulário de filtro e área de resultados
-    content.innerHTML = `
-      <div class="mb-3 grid grid-cols-2 gap-2 text-xs">
-        <div>
-          <label class="block text-gray-500 mb-0.5">Data Início</label>
-          <input type="date" id="stmt-start" class="w-full p-1 border rounded">
-        </div>
-        <div>
-          <label class="block text-gray-500 mb-0.5">Data Fim</label>
-          <input type="date" id="stmt-end" class="w-full p-1 border rounded">
-        </div>
-      </div>
-      <button onclick="AdminModals.loadClientStatement('${clientId}')" class="w-full py-1.5 bg-[#2F7A3C] text-white font-bold rounded text-xs shadow mb-4">
-        Filtrar Extrato
-      </button>
-      <div id="stmt-results" class="text-center py-4 text-gray-400 text-xs">
-        Selecione as datas ou clique em Filtrar para carregar todas as encomendas faturadas.
-      </div>
-    `;
-
-    window.UI.openModal('modal-generic');
-    // Auto-carregar tudo por omissão
-    AdminModals.loadClientStatement(clientId);
-  },
-
-  loadClientStatement: async (clientId) => {
-    const resultsArea = document.getElementById('stmt-results');
-    const start = document.getElementById('stmt-start')?.value;
-    const end = document.getElementById('stmt-end')?.value;
-
-    resultsArea.innerHTML = '<i class="fas fa-spinner fa-spin text-lg text-[#2F7A3C]"></i>';
-
-    try {
-      const data = await window.AdminApi.fetchClientStatement(clientId, start, end);
-
-      if (data.ordersList.length === 0) {
-        resultsArea.innerHTML = '<p class="text-gray-500 py-2">Nenhuma entrega registada neste período.</p>';
-        return;
-      }
-
-      let html = `
-        <div class="grid grid-cols-2 gap-2 text-center mb-3 text-xs">
-          <div class="p-1.5 bg-gray-50 rounded border">
-            <span class="text-[10px] text-gray-500 uppercase block">Total Faturado</span>
-            <span class="font-bold text-[#C97813]">${window.UI.formatCurrency(data.totalValue)}</span>
-          </div>
-          <div class="p-1.5 bg-gray-50 rounded border">
-            <span class="text-[10px] text-gray-500 uppercase block">Volume de Entregas</span>
-            <span class="font-bold text-gray-800">${data.totalOrders}</span>
-          </div>
-        </div>
-
-        <div class="max-h-48 overflow-y-auto border rounded divide-y text-left text-xs">
-      `;
-
-      data.ordersList.forEach(o => {
-        html += `
-          <div class="p-2 flex items-center justify-between hover:bg-gray-50">
-            <div>
-              <span class="font-mono font-bold text-[#2F7A3C]">#${o._id.substring(0, 6)}</span>
-              <span class="text-gray-500 block text-[10px]">${window.UI.formatDate(o.timestamp_completed)}</span>
-            </div>
-            <div class="text-right">
-              <span class="font-bold text-gray-800">${window.UI.formatCurrency(o.price)}</span>
-              <span class="text-gray-500 block text-[10px]">${o.service_type.toUpperCase()}</span>
-            </div>
-          </div>
-        `;
-      });
-
-      html += '</div>';
-      resultsArea.innerHTML = html;
-    } catch (err) {
-      resultsArea.innerHTML = `<p class="text-red-600 py-2">${err.message}</p>`;
-    }
-  },
-
-  // --- EDIT MANAGER ---
-  openEditManagerModal: (id, nome, email, telefone) => {
-    document.getElementById('edit-manager-id').value = id;
-    document.getElementById('edit-manager-nome').value = nome;
-    document.getElementById('edit-manager-email').value = email;
-    document.getElementById('edit-manager-telefone').value = telefone;
-    document.getElementById('edit-manager-password').value = '';
-    
-    window.UI.openModal('modal-edit-manager');
-  },
-
-  // --- EDIT EXPENSE ---
-  openEditExpenseModal: (id, category, amount, description, date) => {
-    document.getElementById('edit-expense-id').value = id;
-    document.getElementById('edit-expense-category').value = category;
-    document.getElementById('edit-expense-amount').value = amount;
-    document.getElementById('edit-expense-description').value = description;
-    
-    if (date) {
-      document.getElementById('edit-expense-date').value = new Date(date).toISOString().split('T')[0];
-    }
-
-    window.UI.openModal('modal-edit-expense');
-  }
-};
-
-window.AdminModals = AdminModals;
+}
