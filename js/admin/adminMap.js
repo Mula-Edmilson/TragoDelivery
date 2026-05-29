@@ -1,7 +1,7 @@
 /*
  * Ficheiro: js/admin/adminMap.js
  *
- * (Dependência #5) - Precisa de 'api.js', 'auth.js', 'socket.io'
+ * (Dependência #5) - Precisa de 'api.js', 'auth.js', 'supabaseRealtime.js'
  *
  * Contém toda a lógica de gestão dos mapas Leaflet.js:
  * - O mapa do formulário de nova entrega.
@@ -136,10 +136,10 @@ function initializeLiveMap() {
         // Pede ao socket as localizações atuais.
         if (socket && typeof socket.emit === 'function') {
             socket.emit('admin_request_all_locations');
-            console.log('A pedir ao servidor as localizações ativas via Socket.IO...');
+            console.log('A pedir as localizações ativas via Supabase Realtime/API...');
         }
 
-        // Fallback profissional: mesmo que um evento Socket.IO falhe, o mapa
+        // Fallback profissional: mesmo que um evento Realtime falhe, o mapa
         // consulta periodicamente as últimas localizações persistidas no backend.
         fetchLiveDriverLocations();
         liveMapRefreshTimer = setInterval(fetchLiveDriverLocations, 20000);

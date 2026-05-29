@@ -1,22 +1,36 @@
-const mongoose = require('mongoose');
+const { createModel } = require('../lib/supabaseModel');
 
-const clientSchema = new mongoose.Schema(
-  {
-    nome: { type: String, required: true, trim: true },
-    telefone: { type: String, required: true, unique: true, trim: true },
-    email: { type: String, lowercase: true, trim: true, sparse: true },
-    empresa: { type: String, trim: true },
-    nuit: { type: String, trim: true },
-    endereco: { type: String, trim: true },
-    created_by_admin: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: 'User'
-    }
+const Client = createModel({
+  name: 'Client',
+  table: 'clients',
+  collection: 'clients',
+  mapping: {
+    _id: 'id',
+    id: 'id',
+    nome: 'nome',
+    telefone: 'telefone',
+    email: 'email',
+    empresa: 'empresa',
+    nuit: 'nuit',
+    endereco: 'endereco',
+    created_by_admin: 'created_by_admin',
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   },
-  { timestamps: true }
-);
+  defaults: {
+    email: '',
+    empresa: '',
+    nuit: '',
+    endereco: ''
+  },
+  relations: {
+    created_by_admin: {
+      model: () => require('./User'),
+      localField: 'created_by_admin',
+      foreignField: '_id',
+      single: true
+    }
+  }
+});
 
-clientSchema.index({ nome: 1 });
-
-module.exports = mongoose.model('Client', clientSchema);
+module.exports = Client;

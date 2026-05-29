@@ -1,21 +1,17 @@
 require('dotenv').config();
-const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-
 const connectDB = require('../config/db');
 const User = require('../models/User');
 const DriverProfile = require('../models/DriverProfile');
 const Client = require('../models/Client');
 const Order = require('../models/Order');
 const CompanyCost = require('../models/CompanyCost');
-const { ORDER_STATUS, DRIVER_STATUS } = require('../utils/constants');
+const { DRIVER_STATUS, ORDER_STATUS } = require('../utils/constants');
 
 async function run() {
-  if (!process.env.MONGO_URI) throw new Error('MONGO_URI em falta no .env');
-  if (!process.env.JWT_SECRET) process.env.JWT_SECRET = 'seed-only-secret';
-
   await connectDB();
 
+  console.log('A limpar dados demo no Supabase...');
   await Promise.all([
     Order.deleteMany({}),
     CompanyCost.deleteMany({}),
@@ -24,14 +20,12 @@ async function run() {
     User.deleteMany({})
   ]);
 
-  const [adminPassword, driverPassword, managerPassword] = await Promise.all([
-    bcrypt.hash('admin123', 12),
-    bcrypt.hash('driver123', 12),
-    bcrypt.hash('gestor123', 12)
-  ]);
+  const adminPassword = await bcrypt.hash('admin123', 12);
+  const driverPassword = await bcrypt.hash('driver123', 12);
+  const managerPassword = await bcrypt.hash('gestor123', 12);
 
   const admin = await User.create({
-    nome: 'Admin Trago Delivery',
+    nome: 'Admin Trago',
     email: 'admin@tragodelivery.co.mz',
     telefone: '+258840000001',
     password: adminPassword,
@@ -39,7 +33,7 @@ async function run() {
   });
 
   await User.create({
-    nome: 'Gestor Demo',
+    nome: 'Gestor Operacional',
     email: 'gestor@tragodelivery.co.mz',
     telefone: '+258840000002',
     password: managerPassword,
@@ -47,12 +41,12 @@ async function run() {
   });
 
   const driverUsers = await User.insertMany([
-    { nome: 'Carlos Nhantumbo', email: 'carlos@tragodelivery.co.mz', telefone: '+258840000003', password: driverPassword, role: 'driver' },
+    { nome: 'Carlos Mula', email: 'carlos@tragodelivery.co.mz', telefone: '+258840000003', password: driverPassword, role: 'driver' },
     { nome: 'Ana Chissano', email: 'ana@tragodelivery.co.mz', telefone: '+258840000004', password: driverPassword, role: 'driver' }
   ]);
 
   const driverProfiles = await DriverProfile.insertMany([
-    { user: driverUsers[0]._id, vehicle_plate: 'MZ-01-ED', status: DRIVER_STATUS.ONLINE_FREE, commissionRate: 20, lastLocation: { lat: -25.9653, lng: 32.5892, updatedAt: new Date() } },
+    { user: driverUsers[0]._id, vehicle_plate: 'MZ-01-ED', status: DRIVER_STATUS.ONLINE_FREE, commissionRate: 20, lastLocation: { lat: -25.9653, lng: 32.5892, updatedAt: new Date().toISOString() } },
     { user: driverUsers[1]._id, vehicle_plate: 'MZ-02-AH', status: DRIVER_STATUS.OFFLINE, commissionRate: 25 }
   ]);
 
@@ -93,18 +87,15 @@ async function run() {
     { category: 'manutencao', amount: 600, description: 'Manutenção de mota', date: now, createdBy: admin._id, assignedUser: driverUsers[1]._id }
   ]);
 
-  console.log('Seed demo concluído.');
+  console.log('Seed demo Supabase concluído.');
   console.table([
     { perfil: 'Admin', email: 'admin@tragodelivery.co.mz', senha: 'admin123' },
     { perfil: 'Motorista', email: 'carlos@tragodelivery.co.mz', senha: 'driver123' },
     { perfil: 'Gestor', email: 'gestor@tragodelivery.co.mz', senha: 'gestor123' }
   ]);
-
-  await mongoose.connection.close();
 }
 
-run().catch(async (error) => {
+run().catch((error) => {
   console.error(error);
-  if (mongoose.connection.readyState) await mongoose.connection.close();
   process.exit(1);
 });

@@ -1,6 +1,4 @@
-// backend/models/CompanyCost.js
-
-const mongoose = require('mongoose');
+const { createModel } = require('../lib/supabaseModel');
 
 const COMPANY_COST_CATEGORIES = [
   'salarios',
@@ -12,57 +10,52 @@ const COMPANY_COST_CATEGORIES = [
   'diversos'
 ];
 
-const companyCostSchema = new mongoose.Schema(
-  {
-    category: {
-      type: String,
-      enum: COMPANY_COST_CATEGORIES,
-      required: true
-    },
-    description: {
-      type: String,
-      trim: true,
-      default: ''
-    },
-    amount: {
-      type: Number,
-      required: true,
-      min: 0
-    },
-    date: {
-      type: Date,
-      default: Date.now
-    },
-
-    // Quem criou o registo
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-
-    // NOVO: custo atribuído a um funcionário (motorista/gestor)
-    assignedUser: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null
-    },
-
-    // NOVO: custo atribuído a um cliente
-    assignedClient: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Client',
-      default: null
-    }
+const CompanyCost = createModel({
+  name: 'CompanyCost',
+  table: 'company_costs',
+  collection: 'companycosts',
+  mapping: {
+    _id: 'id',
+    id: 'id',
+    category: 'category',
+    description: 'description',
+    amount: 'amount',
+    date: 'date',
+    createdBy: 'created_by',
+    assignedUser: 'assigned_user',
+    assignedClient: 'assigned_client',
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   },
-  {
-    timestamps: true
+  defaults: {
+    description: '',
+    amount: 0,
+    assignedUser: null,
+    assignedClient: null
+  },
+  relations: {
+    createdBy: {
+      model: () => require('./User'),
+      localField: 'createdBy',
+      foreignField: '_id',
+      single: true
+    },
+    assignedUser: {
+      model: () => require('./User'),
+      localField: 'assignedUser',
+      foreignField: '_id',
+      single: true
+    },
+    assignedClient: {
+      model: () => require('./Client'),
+      localField: 'assignedClient',
+      foreignField: '_id',
+      single: true
+    }
   }
-);
+});
 
-// Guardar as categorias disponíveis no próprio schema
-companyCostSchema.statics.CATEGORIES = COMPANY_COST_CATEGORIES;
-
-const CompanyCost = mongoose.model('CompanyCost', companyCostSchema);
+CompanyCost.CATEGORIES = COMPANY_COST_CATEGORIES;
 
 module.exports = CompanyCost;
 module.exports.COMPANY_COST_CATEGORIES = COMPANY_COST_CATEGORIES;

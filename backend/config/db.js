@@ -1,15 +1,11 @@
-const mongoose = require('mongoose');
+const { testSupabaseConnection } = require('./supabase');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      maxPoolSize: parseInt(process.env.MONGO_POOL_SIZE || '10', 10),
-      serverSelectionTimeoutMS: 5000
-    });
-
-    console.log(`MongoDB conectado: ${conn.connection.host}`);
+    await testSupabaseConnection();
+    console.log('Supabase conectado e tabelas principais verificadas.');
   } catch (error) {
-    console.error(`Erro de conexão MongoDB: ${error.message}`);
+    console.error(`Erro de conexão Supabase: ${error.message}`);
     process.exit(1);
   }
 };

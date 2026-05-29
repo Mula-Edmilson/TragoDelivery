@@ -1,7 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const mongoose = require('mongoose');
+const { isValidId } = require('../utils/id');
 
 exports.createManager = asyncHandler(async (req, res) => {
   const { nome, email, telefone, password } = req.body;
@@ -45,7 +45,7 @@ exports.getAllManagers = asyncHandler(async (_req, res) => {
 exports.getManagerById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     res.status(404);
     throw new Error('Gestor não encontrado (ID inválido).');
   }
@@ -64,7 +64,7 @@ exports.updateManager = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { nome, telefone, email } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     res.status(404);
     throw new Error('Gestor não encontrado (ID inválido).');
   }
@@ -91,7 +91,7 @@ exports.updateManager = asyncHandler(async (req, res) => {
 exports.deleteManager = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     res.status(404);
     throw new Error('Gestor não encontrado (ID inválido).');
   }

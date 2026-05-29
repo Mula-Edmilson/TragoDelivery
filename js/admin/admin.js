@@ -277,24 +277,17 @@ function showServiceForm(serviceType) {
     setTimeout(initializeFormMap, 100); // (adminMap.js)
 }
 
-/* --- Lógica de Socket.IO --- */
+/* --- Lógica de Supabase Realtime --- */
 function connectSocket() {
     const token = getAuthToken('admin');
     if (!token) return;
-    
-    socket = io(API_URL, { auth: { token: token } });
-    
-    socket.on('connect', () => {
-        console.log('Conectado ao servidor Socket.io com ID:', socket.id);
-        socket.emit('admin_join_room');
-    });
 
     // Função auxiliar para saber qual página está ativa
     const activePage = () => {
         const page = document.querySelector('.content-page:not(.hidden)');
         return page ? page.id : null;
     };
-    
+
     function refreshOperationalViews({ includeHistory = false, includeFinancials = false } = {}) {
         const page = activePage();
         if (page === 'entregas-activas') loadActiveDeliveries();
@@ -307,38 +300,61 @@ function connectSocket() {
         }
     }
 
-    // Listeners de Socket que atualizam a UI
-    socket.on('order_pending', () => refreshOperationalViews());
-    socket.on('pickup_started', () => refreshOperationalViews());
-    socket.on('pickup_completed', () => refreshOperationalViews());
-    socket.on('delivery_started', () => refreshOperationalViews());
-    socket.on('order_canceled', () => refreshOperationalViews({ includeHistory: true }));
-    
-    socket.on('delivery_completed', () => {
-        refreshOperationalViews({ includeHistory: true, includeFinancials: true });
-    });
-    
-    socket.on('driver_status_changed', (data) => {
-        refreshOperationalViews();
+    function handleRealtimeEvent(event, data = {}) {
+        switch (event) {
+            case 'order_pending':
+            case 'orders_changed':
+            case 'pickup_started':
+            case 'pickup_completed':
+            case 'delivery_started':
+                refreshOperationalViews();
+                break;
 
-        if (activePage() === 'mapa-tempo-real') {
-            if (typeof updateDriverMarkerStatus === 'function') {
-                updateDriverMarkerStatus(data);
-            }
-            if (typeof fetchLiveDriverLocations === 'function') {
+            case 'order_canceled':
+                refreshOperationalViews({ includeHistory: true });
+                break;
+
+            case 'delivery_completed':
+                refreshOperationalViews({ includeHistory: true, includeFinancials: true });
+                break;
+
+            case 'driver_status_changed':
+                refreshOperationalViews();
+                if (activePage() === 'mapa-tempo-real') {
+                    if (typeof updateDriverMarkerStatus === 'function') updateDriverMarkerStatus(data);
+                    if (typeof fetchLiveDriverLocations === 'function') fetchLiveDriverLocations();
+                }
+                break;
+
+            case 'driver_location_broadcast':
+                if (typeof updateDriverMarker === 'function') updateDriverMarker(data);
+                break;
+
+            case 'driver_disconnected_broadcast':
+                if (typeof removeDriverMarker === 'function') removeDriverMarker(data);
+                break;
+
+            default:
+                console.log('[TragoRealtime] Evento admin recebido:', event, data);
+        }
+    }
+
+    const subscription = window.TragoRealtime?.connectAdminRealtime({
+        onEvent: handleRealtimeEvent
+    });
+
+    // Mantém uma interface mínima compatível com código antigo que ainda chama socket.emit().
+    socket = {
+        connected: Boolean(subscription),
+        emit(event) {
+            if (event === 'admin_request_all_locations' && typeof fetchLiveDriverLocations === 'function') {
                 fetchLiveDriverLocations();
             }
+        },
+        disconnect() {
+            subscription?.unsubscribe?.();
         }
-    });
-
-    // Listeners do Mapa em Tempo Real (chamam funções do adminMap.js)
-    socket.on('driver_location_broadcast', (data) => {
-        updateDriverMarker(data);
-    });
-    
-    socket.on('driver_disconnected_broadcast', (data) => {
-        removeDriverMarker(data);
-    });
+    };
 }
 
 /* --- Lógica Auxiliar (UI Helpers) --- */

@@ -22,7 +22,7 @@ const { initSocketHandler } = require('./socketHandler');
 const { ADMIN_ROOM } = require('./utils/constants');
 const { validateRequiredEnv } = require('./utils/validateEnv');
 
-validateRequiredEnv(['MONGO_URI', 'JWT_SECRET']);
+validateRequiredEnv(['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'JWT_SECRET']);
 
 connectDB();
 

@@ -2,7 +2,6 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const sharp = require('sharp');
 const asyncHandler = require('express-async-handler');
-const mongoose = require('mongoose');
 const Order = require('../models/Order');
 const DriverProfile = require('../models/DriverProfile');
 const { DRIVER_STATUS, ORDER_STATUS, ADMIN_ROOM, FINANCIAL } = require('../utils/constants');
@@ -221,7 +220,7 @@ exports.assignOrder = asyncHandler(async (req, res) => {
 
   const io = req.app.get('socketio');
 
-  if (order.assigned_to_driver && !order.assigned_to_driver.equals(driverId)) {
+  if (order.assigned_to_driver && String(order.assigned_to_driver) !== String(driverId)) {
     const oldProfile = await DriverProfile.findById(order.assigned_to_driver).lean();
     if (oldProfile) {
       io.to(oldProfile.user.toString()).emit('entrega_cancelada', { orderId: order._id });
@@ -293,7 +292,7 @@ const startPickup = asyncHandler(async (req, res) => {
     throw new Error('Encomenda não encontrada.');
   }
 
-  if (!order.assigned_to_driver?.equals(driverProfile._id)) {
+  if (String(order.assigned_to_driver || '') !== String(driverProfile._id)) {
     res.status(403);
     throw new Error('Não autorizado para esta encomenda.');
   }
@@ -355,7 +354,7 @@ const completePickup = asyncHandler(async (req, res) => {
     throw new Error('Encomenda não encontrada.');
   }
 
-  if (!order.assigned_to_driver?.equals(driverProfile._id)) {
+  if (String(order.assigned_to_driver || '') !== String(driverProfile._id)) {
     res.status(403);
     throw new Error('Não autorizado para esta encomenda.');
   }
@@ -414,7 +413,7 @@ const startDeliveryPhase = asyncHandler(async (req, res) => {
     throw new Error('Encomenda não encontrada.');
   }
 
-  if (!order.assigned_to_driver?.equals(driverProfile._id)) {
+  if (String(order.assigned_to_driver || '') !== String(driverProfile._id)) {
     res.status(403);
     throw new Error('Não autorizado para esta encomenda.');
   }
@@ -479,7 +478,7 @@ const completeDelivery = asyncHandler(async (req, res) => {
     throw new Error('Encomenda não encontrada.');
   }
 
-  if (!order.assigned_to_driver?.equals(driverProfile._id)) {
+  if (String(order.assigned_to_driver || '') !== String(driverProfile._id)) {
     res.status(403);
     throw new Error('Não autorizado para esta encomenda.');
   }
@@ -598,11 +597,6 @@ exports.getHistoryOrders = asyncHandler(async (_req, res) => {
 exports.getOrderById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    res.status(404);
-    throw new Error('Encomenda não encontrada (ID inválido).');
-  }
-
   const order = await Order.findById(id)
     .populate('created_by_admin', 'nome')
     .populate({
@@ -626,11 +620,6 @@ exports.getOrderById = asyncHandler(async (req, res) => {
 exports.cancelOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { reason } = req.filtered || req.body || {};
-
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    res.status(404);
-    throw new Error('Encomenda não encontrada (ID inválido).');
-  }
 
   const order = await Order.findById(id);
   if (!order) {

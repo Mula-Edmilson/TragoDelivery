@@ -1,7 +1,7 @@
 // backend/controllers/costController.js
 
 const asyncHandler = require('express-async-handler');
-const mongoose = require('mongoose');
+const { isValidId } = require('../utils/id');
 const CompanyCost = require('../models/CompanyCost');
 const Order = require('../models/Order');
 const { ORDER_STATUS } = require('../utils/constants');
@@ -52,7 +52,7 @@ exports.createCost = asyncHandler(async (req, res) => {
   let assignedClient = null;
 
   if (assignedUserId) {
-    if (!mongoose.Types.ObjectId.isValid(assignedUserId)) {
+    if (!isValidId(assignedUserId)) {
       res.status(400);
       throw new Error('ID de utilizador inválido para atribuição do custo.');
     }
@@ -60,7 +60,7 @@ exports.createCost = asyncHandler(async (req, res) => {
   }
 
   if (assignedClientId) {
-    if (!mongoose.Types.ObjectId.isValid(assignedClientId)) {
+    if (!isValidId(assignedClientId)) {
       res.status(400);
       throw new Error('ID de cliente inválido para atribuição do custo.');
     }

@@ -1,7 +1,7 @@
 // backend/controllers/driverController.js
 
 const asyncHandler = require('express-async-handler');
-const mongoose = require('mongoose');
+const { isValidId } = require('../utils/id');
 
 // IMPORTS CORRETOS (estamos dentro da pasta controllers)
 const User = require('../models/User');
@@ -22,7 +22,7 @@ exports.getAllDrivers = asyncHandler(async (_req, res) => {
 exports.getDriverById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     res.status(404);
     throw new Error('Motorista não encontrado (ID inválido).');
   }
@@ -147,7 +147,7 @@ exports.getLiveDriverLocations = asyncHandler(async (_req, res) => {
 exports.getDriverReport = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     res.status(404);
     throw new Error('Motorista não encontrado (ID inválido).');
   }

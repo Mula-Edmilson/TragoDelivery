@@ -1,31 +1,39 @@
-const mongoose = require('mongoose');
+const { createModel } = require('../lib/supabaseModel');
 
-const expenseSchema = new mongoose.Schema(
-  {
-    category: {
-      type: String,
-      enum: ['salarios', 'renda', 'diversos', 'manutencao', 'comunicacao', 'marketing', 'combustivel'],
-      required: true,
-      index: true
-    },
-    description: { type: String, required: true, trim: true },
-    amount: { type: Number, required: true, min: 0 },
-    date: { type: Date, required: true, index: true },
+const Expense = createModel({
+  name: 'Expense',
+  table: 'expenses',
+  collection: 'expenses',
+  mapping: {
+    _id: 'id',
+    id: 'id',
+    category: 'category',
+    description: 'description',
+    amount: 'amount',
+    date: 'date',
+    employee: 'employee',
+    created_by: 'created_by',
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
+  },
+  defaults: {
+    employee: null,
+    amount: 0
+  },
+  relations: {
     employee: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null
+      model: () => require('./User'),
+      localField: 'employee',
+      foreignField: '_id',
+      single: true
     },
     created_by: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+      model: () => require('./User'),
+      localField: 'created_by',
+      foreignField: '_id',
+      single: true
     }
-  },
-  { timestamps: true }
-);
+  }
+});
 
-expenseSchema.index({ date: -1 });
-expenseSchema.index({ category: 1, date: -1 });
-
-module.exports = mongoose.model('Expense', expenseSchema);
+module.exports = Expense;

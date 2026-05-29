@@ -4,7 +4,7 @@ Esta versão mantém o projecto em **HTML, CSS e JavaScript puro**, com **Tailwi
 
 ## O que foi corrigido
 
-- Backend Express/MongoDB preservado.
+- Backend Express preservado, com camada de dados migrada para Supabase/Postgres. Ver README-SUPABASE.md.
 - Role `manager` adicionada ao model `User`.
 - Middleware `adminOrManager` criado.
 - Rotas `/api/managers` montadas no servidor.
@@ -42,7 +42,7 @@ No PowerShell:
 Copy-Item .env.example .env
 ```
 
-Confirma que `MONGO_URI` aponta para o teu MongoDB local ou Atlas.
+Confirma que `SUPABASE_URL` e `SUPABASE_SECRET_KEY` estão configurados. Ver README-SUPABASE.md.
 
 ### 3. Instalar dependências
 

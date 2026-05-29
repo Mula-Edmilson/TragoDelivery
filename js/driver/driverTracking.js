@@ -304,66 +304,82 @@ function handleLocationError(error, isRequired = false) {
 function connectDriverSocket() {
     const token = getAuthToken('driver');
     if (!token) {
-        console.error("Não foi possível conectar o socket: Token do motorista não encontrado.");
+        console.error('Não foi possível conectar o Realtime: Token do motorista não encontrado.');
         return;
     }
-    
-    socket = io(API_URL, {
-        auth: { token: token },
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000
-    });
 
-    socket.on('connect', () => {
-        console.log('Motorista conectado ao Socket.IO com ID:', socket.id);
-        
-        // Após conectar, solicitar permissão de localização OBRIGATÓRIA
-        setTimeout(() => {
-            showLocationPermissionModal();
-        }, 1000);
-        
-        socket.on('nova_entrega_atribuida', (data) => {
+    function handleDriverRealtimeEvent(event, data = {}) {
+        if (event === 'nova_entrega_atribuida') {
             console.log('Nova entrega recebida:', data);
-            
+
             playNotificationSound();
-            
+
             if (typeof showCustomAlert === 'function') {
                 showCustomAlert(
-                    'Nova Entrega!', 
-                    `Novo pedido de ${data.clientName} (${window.SERVICE_NAMES ? window.SERVICE_NAMES[data.serviceType] : data.serviceType || 'Serviço'}).`, 
+                    'Nova Entrega!',
+                    `Novo pedido de ${data.clientName} (${window.SERVICE_NAMES ? window.SERVICE_NAMES[data.serviceType] : data.serviceType || 'Serviço'}).`,
                     'success'
                 );
             }
-            
-            document.dispatchEvent(new Event('nova_entrega'));
-        });
 
-        socket.on('entrega_cancelada', (data) => {
+            document.dispatchEvent(new Event('nova_entrega'));
+            return;
+        }
+
+        if (event === 'entrega_cancelada') {
             console.log('Entrega foi reatribuída/cancelada:', data);
-            
+
             if (typeof showCustomAlert === 'function') {
                 showCustomAlert(
-                    'Entrega Reatribuída', 
-                    `O pedido #${data.orderId ? data.orderId.slice(-6) : ''} foi reatribuído a outro motorista.`, 
+                    'Entrega Reatribuída',
+                    `O pedido #${data.orderId ? data.orderId.slice(-6) : ''} foi reatribuído a outro motorista.`,
                     'info'
                 );
             }
-            
+
             document.dispatchEvent(new Event('nova_entrega'));
-        });
+            return;
+        }
 
-        document.body.addEventListener('click', unlockAudio, { once: true });
-        document.body.addEventListener('touchstart', unlockAudio, { once: true });
-    });
-    
-    socket.on('disconnect', () => {
-        console.log('Motorista desconectado do Socket.IO.');
-        stopLocationTracking();
+        console.log('[TragoRealtime] Evento motorista recebido:', event, data);
+    }
+
+    const subscription = window.TragoRealtime?.connectDriverRealtime({
+        token,
+        onEvent: handleDriverRealtimeEvent,
+        onReady: () => {
+            console.log('Motorista conectado ao Supabase Realtime.');
+            window.TragoRealtime?.setDriverOnline(token).catch((error) => {
+                console.warn('Não foi possível marcar motorista como online:', error);
+            });
+
+            setTimeout(() => {
+                showLocationPermissionModal();
+            }, 1000);
+
+            document.body.addEventListener('click', unlockAudio, { once: true });
+            document.body.addEventListener('touchstart', unlockAudio, { once: true });
+        }
     });
 
-    socket.on('connect_error', (error) => {
-        console.error('Erro de conexão Socket.IO:', error);
+    // Interface mínima para manter compatibilidade com o código antigo que fazia socket.emit().
+    socket = {
+        connected: Boolean(subscription),
+        emit(event, payload) {
+            if (event === 'driver_location_update') {
+                return window.TragoRealtime?.sendDriverLocation(token, payload).catch((error) => {
+                    console.warn('Falha ao enviar localização via Supabase Realtime:', error);
+                });
+            }
+        },
+        disconnect() {
+            subscription?.unsubscribe?.();
+            window.TragoRealtime?.setDriverOffline(token).catch(() => {});
+        }
+    };
+
+    window.addEventListener('beforeunload', () => {
+        window.TragoRealtime?.setDriverOffline(token).catch(() => {});
     });
 }
 

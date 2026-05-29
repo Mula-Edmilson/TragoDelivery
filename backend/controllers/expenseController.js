@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const Expense = require('../models/Expense');
-const mongoose = require('mongoose');
+const { isValidId } = require('../utils/id');
 
 exports.createExpense = asyncHandler(async (req, res) => {
   const { category, description, amount, date, employee } = req.body;
@@ -55,7 +55,7 @@ exports.updateExpense = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { category, description, amount, date, employee } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     res.status(404);
     throw new Error('Custo não encontrado (ID inválido).');
   }
@@ -86,7 +86,7 @@ exports.updateExpense = asyncHandler(async (req, res) => {
 exports.deleteExpense = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     res.status(404);
     throw new Error('Custo não encontrado (ID inválido).');
   }

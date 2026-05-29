@@ -25,7 +25,7 @@
 
 ## Validação feita
 - Todos os ficheiros JavaScript principais do frontend e backend passaram em `node --check`.
-- Não foi feito teste de base de dados em produção porque este ambiente não tem as credenciais/MongoDB do projecto.
+- Não foi feito teste de base de dados em produção porque este ambiente não tem acesso ao projecto Supabase real.
 
 ## Segunda revisão — layout corporate, sharp e controlo de altura
 

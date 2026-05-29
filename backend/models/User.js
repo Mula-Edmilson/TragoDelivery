@@ -1,32 +1,29 @@
-const mongoose = require('mongoose');
+const { createModel } = require('../lib/supabaseModel');
 
-const userSchema = new mongoose.Schema(
-  {
-    nome: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    telefone: { type: String, required: true, trim: true },
-    password: { type: String, required: true, select: false },
-    role: {
-      type: String,
-      enum: ['admin', 'driver'],
-      required: true,
-      index: true
-    }
+const User = createModel({
+  name: 'User',
+  table: 'users',
+  collection: 'users',
+  mapping: {
+    _id: 'id',
+    id: 'id',
+    nome: 'nome',
+    email: 'email',
+    telefone: 'telefone',
+    password: 'password',
+    role: 'role',
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   },
-  {
-    timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
+  relations: {
+    profile: {
+      model: () => require('./DriverProfile'),
+      localField: '_id',
+      foreignField: 'user',
+      single: true,
+      virtual: true
+    }
   }
-);
-
-userSchema.index({ email: 1 }, { unique: true });
-
-userSchema.virtual('profile', {
-  ref: 'DriverProfile',
-  localField: '_id',
-  foreignField: 'user',
-  justOne: true
 });
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = User;

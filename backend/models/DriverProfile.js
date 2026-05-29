@@ -1,36 +1,35 @@
-const mongoose = require('mongoose');
+const { createModel } = require('../lib/supabaseModel');
 const { DRIVER_STATUS, FINANCIAL } = require('../utils/constants');
 
-const driverProfileSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-      unique: true
-    },
-    vehicle_plate: { type: String, default: '', trim: true },
-    status: {
-      type: String,
-      enum: Object.values(DRIVER_STATUS),
-      default: DRIVER_STATUS.OFFLINE,
-      index: true
-    },
-    commissionRate: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: FINANCIAL.DEFAULT_COMMISSION_RATE
-    },
-    lastLocation: {
-      lat: { type: Number },
-      lng: { type: Number },
-      accuracy: { type: Number },
-      speed: { type: Number },
-      updatedAt: { type: Date }
-    }
+const DriverProfile = createModel({
+  name: 'DriverProfile',
+  table: 'driver_profiles',
+  collection: 'driverprofiles',
+  mapping: {
+    _id: 'id',
+    id: 'id',
+    user: 'user_id',
+    vehicle_plate: 'vehicle_plate',
+    status: 'status',
+    commissionRate: 'commission_rate',
+    lastLocation: 'last_location',
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   },
-  { timestamps: true }
-);
+  defaults: {
+    status: DRIVER_STATUS.OFFLINE,
+    commissionRate: FINANCIAL.DEFAULT_COMMISSION_RATE,
+    vehicle_plate: '',
+    lastLocation: null
+  },
+  relations: {
+    user: {
+      model: () => require('./User'),
+      localField: 'user',
+      foreignField: '_id',
+      single: true
+    }
+  }
+});
 
-module.exports = mongoose.model('DriverProfile', driverProfileSchema);
+module.exports = DriverProfile;

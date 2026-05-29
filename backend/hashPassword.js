@@ -7,7 +7,7 @@ async function hashMyPassword() {
 
     console.log('--- HASH PARA O ADMIN ---');
     console.log('Senha Original:', password);
-    console.log('O seu HASH (para colar no MongoDB) é:');
+    console.log('O seu HASH (para colar na tabela users do Supabase) é:');
     console.log(hash);
     console.log('---------------------------');
 }

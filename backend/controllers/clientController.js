@@ -1,5 +1,5 @@
 const asyncHandler = require('express-async-handler');
-const mongoose = require('mongoose');
+const { isValidId } = require('../utils/id');
 const Client = require('../models/Client');
 const Order = require('../models/Order');
 const { ORDER_STATUS } = require('../utils/constants');
@@ -35,7 +35,7 @@ exports.getAllClients = asyncHandler(async (_req, res) => {
 exports.getClientById = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  if (!mongoose.Types.ObjectId.isValid(id)) {
+  if (!isValidId(id)) {
     res.status(404);
     throw new Error('Cliente não encontrado (ID inválido).');
   }
@@ -113,7 +113,7 @@ exports.getStatement = asyncHandler(async (req, res) => {
   const end = new Date(endDate);
   end.setUTCHours(23, 59, 59, 999);
 
-  const clientId = new mongoose.Types.ObjectId(id);
+  const clientId = id;
 
   const orders = await Order.find({
     client: clientId,

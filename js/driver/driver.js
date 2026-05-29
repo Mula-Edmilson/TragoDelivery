@@ -244,7 +244,7 @@ function fillDetalheEntrega(order) {
     const img = detalheSection.querySelector('#encomenda-imagem');
     const noImg = detalheSection.querySelector('#no-image-placeholder');
     if (order.image_url) {
-        img.src = `${API_URL}${order.image_url}`;
+        img.src = /^https?:\/\//i.test(order.image_url) ? order.image_url : `${API_URL}${order.image_url}`;
         img.classList.remove('hidden');
         noImg.classList.add('hidden');
     } else {

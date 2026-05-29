@@ -1,7 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
 const User = require('../models/User');
 const DriverProfile = require('../models/DriverProfile');
 const { FINANCIAL } = require('../utils/constants');
@@ -44,40 +43,25 @@ exports.registerDriver = asyncHandler(async (req, res) => {
   }
 
   const hashedPassword = await bcrypt.hash(password, 12);
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  const parsedCommission = parseCommissionRate(
+    commissionRate,
+    FINANCIAL.DEFAULT_COMMISSION_RATE
+  );
+
+  const user = await User.create({
+    nome: nome.trim(),
+    email: normalizedEmail,
+    telefone: telefone.trim(),
+    password: hashedPassword,
+    role: 'driver'
+  });
 
   try {
-    const [user] = await User.create(
-      [
-        {
-          nome: nome.trim(),
-          email: normalizedEmail,
-          telefone: telefone.trim(),
-          password: hashedPassword,
-          role: 'driver'
-        }
-      ],
-      { session }
-    );
-
-    const parsedCommission = parseCommissionRate(
-      commissionRate,
-      FINANCIAL.DEFAULT_COMMISSION_RATE
-    );
-
-    const [driverProfile] = await DriverProfile.create(
-      [
-        {
-          user: user._id,
-          vehicle_plate: vehicle_plate?.trim() || '',
-          commissionRate: parsedCommission
-        }
-      ],
-      { session }
-    );
-
-    await session.commitTransaction();
+    const driverProfile = await DriverProfile.create({
+      user: user._id,
+      vehicle_plate: vehicle_plate?.trim() || '',
+      commissionRate: parsedCommission
+    });
 
     res.status(201).json({
       message: 'Motorista registado com sucesso.',
@@ -91,10 +75,8 @@ exports.registerDriver = asyncHandler(async (req, res) => {
       profile: driverProfile
     });
   } catch (error) {
-    await session.abortTransaction();
+    await user.deleteOne().catch(() => {});
     throw error;
-  } finally {
-    session.endSession();
   }
 });
 

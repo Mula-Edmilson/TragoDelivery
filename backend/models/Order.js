@@ -1,94 +1,74 @@
-// backend/models/Order.js
-
-const mongoose = require('mongoose');
+const { createModel } = require('../lib/supabaseModel');
 const { ORDER_STATUS } = require('../utils/constants');
 
-const orderSchema = new mongoose.Schema(
-  {
-    service_type: { type: String, required: true, trim: true },
-    price: { type: Number, required: true, default: 0 },
-
-    client_name: { type: String, required: true, trim: true },
-    client_phone1: { type: String, required: true, trim: true },
-    client_phone2: { type: String, trim: true },
-
-    address_text: { type: String, trim: true },
-    address_coords: {
-      lat: { type: Number },
-      lng: { type: Number }
-    },
-
-    image_url: { type: String },
-
-    verification_code: { type: String, required: true },
-
-    created_by_admin: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-
-    assigned_to_driver: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'DriverProfile'
-    },
-
-    client: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Client'
-    },
-
-    status: {
-      type: String,
-      enum: Object.values(ORDER_STATUS),
-      default: ORDER_STATUS.PENDING,
-      index: true
-    },
-
-    // tempos "antigos" gerais
-    timestamp_started: { type: Date },
-    timestamp_completed: { type: Date },
-
-    // ✅ NOVOS CAMPOS: controlo dos movimentos do motorista
-    // saída da central em direcção ao ponto de recolha
-    pickupStartAt: { type: Date },
-
-    // chegada ao ponto de recolha / recolha concluída
-    pickupCompletedAt: { type: Date },
-
-    // saída do ponto de recolha em direcção ao destino
-    deliveryStartAt: { type: Date },
-
-    // chegada ao ponto de entrega / entrega concluída
-    // (na prática, normalmente será igual ou muito próximo de timestamp_completed)
-    deliveryCompletedAt: { type: Date },
-
-    // ✅ NOVOS CAMPOS: cancelamento
-    cancelledAt: { type: Date },
-    cancelledBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    cancelReason: { type: String, trim: true },
-
-    // financeiro (já existia)
-    valor_motorista: { type: Number, default: 0 },
-    valor_empresa: { type: Number, default: 0 },
-
-// ✅ NOVO — método de pagamento
-payment_method: {
-  type: String,
-  enum: ['cash', 'mpesa', 'emola', 'mkesh', 'bank_transfer'],
-  default: 'cash',
-  index: true
-}
-    
+const Order = createModel({
+  name: 'Order',
+  table: 'orders',
+  collection: 'orders',
+  mapping: {
+    _id: 'id',
+    id: 'id',
+    service_type: 'service_type',
+    price: 'price',
+    client_name: 'client_name',
+    client_phone1: 'client_phone1',
+    client_phone2: 'client_phone2',
+    address_text: 'address_text',
+    address_coords: 'address_coords',
+    image_url: 'image_url',
+    verification_code: 'verification_code',
+    created_by_admin: 'created_by_admin',
+    assigned_to_driver: 'assigned_to_driver',
+    client: 'client',
+    status: 'status',
+    timestamp_started: 'timestamp_started',
+    timestamp_completed: 'timestamp_completed',
+    pickupStartAt: 'pickup_start_at',
+    pickupCompletedAt: 'pickup_completed_at',
+    deliveryStartAt: 'delivery_start_at',
+    deliveryCompletedAt: 'delivery_completed_at',
+    cancelledAt: 'cancelled_at',
+    cancelledBy: 'cancelled_by',
+    cancelReason: 'cancel_reason',
+    valor_motorista: 'valor_motorista',
+    valor_empresa: 'valor_empresa',
+    payment_method: 'payment_method',
+    createdAt: 'created_at',
+    updatedAt: 'updated_at'
   },
-  { timestamps: true }
-);
+  defaults: {
+    status: ORDER_STATUS.PENDING,
+    price: 0,
+    valor_motorista: 0,
+    valor_empresa: 0,
+    payment_method: 'cash'
+  },
+  relations: {
+    created_by_admin: {
+      model: () => require('./User'),
+      localField: 'created_by_admin',
+      foreignField: '_id',
+      single: true
+    },
+    assigned_to_driver: {
+      model: () => require('./DriverProfile'),
+      localField: 'assigned_to_driver',
+      foreignField: '_id',
+      single: true
+    },
+    client: {
+      model: () => require('./Client'),
+      localField: 'client',
+      foreignField: '_id',
+      single: true
+    },
+    cancelledBy: {
+      model: () => require('./User'),
+      localField: 'cancelledBy',
+      foreignField: '_id',
+      single: true
+    }
+  }
+});
 
-// índices existentes (mantidos)
-orderSchema.index({ status: 1, createdAt: -1 });
-orderSchema.index({ assigned_to_driver: 1, status: 1 });
-orderSchema.index({ client: 1, status: 1, timestamp_completed: -1 });
-
-module.exports = mongoose.model('Order', orderSchema);
+module.exports = Order;
